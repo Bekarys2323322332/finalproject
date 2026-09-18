@@ -1,0 +1,119 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@using CvManager.Models
+@model CvManager.Models.ViewModels.CvAttributeRow
+@inject IStringLocalizer<SharedResource> L
+@{
+    // Rendered in two modes. Editable gives the inputs the auto-save script
+    // watches; read-only renders the value as text for recruiters.
+    var editable = (bool)(ViewData["Editable"] ?? false);
+    var value = Model.Value;
+    var version = value?.Version ?? 0;
+    var missing = !Model.HasValue;
+}
+
+<div class="mb-3 @(missing ? "value-missing" : "")"
+     @(editable ? "data-value-field" : "")
+     data-attribute-id="@Model.Attribute.Id"
+     data-type="@Model.Attribute.Type"
+     data-version="@version">
+
+    <label class="form-label mb-1">
+        @Model.Attribute.Name
+        @if (missing)
+        {
+            <span class="badge text-bg-danger ms-1">@L["missing"]</span>
+        }
+    </label>
+
+    @if (!editable)
+    {
+        <div class="value-readonly">
+            @if (Model.Attribute.Type == AttributeType.Image && Model.HasValue)
+            {
+                <img src="@value!.ValueString" alt="@Model.Attribute.Name" class="img-thumbnail" style="max-height:160px" />
+            }
+            else if (Model.Attribute.Type == AttributeType.Text && Model.HasValue)
+            {
+                @* Markdown is rendered server-side with raw HTML disabled. *@
+                @Html.Raw(((CvManager.Services.MarkdownRenderer)ViewData["Markdown"]!).ToHtml(value!.ValueString))
+            }
+            else
+            {
+                @(Model.HasValue ? Model.DisplayText : L["not filled in"].Value)
+            }
+        </div>
+    }
+    else
+    {
+        @switch (Model.Attribute.Type)
+        {
+            case AttributeType.Boolean:
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" checked="@(value?.ValueBoolean == true)" />
+                    <span class="form-check-label text-body-secondary small">@L["Yes / no"]</span>
+                </div>
+                break;
+
+            case AttributeType.Numeric:
+                <input type="number" step="any" class="form-control"
+                       value="@(value?.ValueNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture))" />
+                break;
+
+            case AttributeType.Date:
+                <input type="date" class="form-control" value="@(value?.ValueDate?.ToString("yyyy-MM-dd"))" />
+                break;
+
+            case AttributeType.Period:
+                <div class="row g-2">
+                    <div class="col">
+                        <input type="date" class="form-control" data-role="start"
+                               value="@(value?.ValueDate?.ToString("yyyy-MM-dd"))" aria-label="@L["From"]" />
+                    </div>
+                    <div class="col">
+                        <input type="date" class="form-control" data-role="end"
+                               value="@(value?.ValueDateEnd?.ToString("yyyy-MM-dd"))" aria-label="@L["To"]" />
+                    </div>
+                </div>
+                <div class="form-text">@L["Leave the second date empty if it is still ongoing."]</div>
+                break;
+
+            case AttributeType.Dropdown:
+                <select class="form-select">
+                    <option value="">@L["— not selected —"]</option>
+                    @foreach (var option in Model.Attribute.Options)
+                    {
+                        <option value="@option.Id" selected="@(value?.ValueOptionId == option.Id)">@option.Value</option>
+                    }
+                </select>
+                break;
+
+            case AttributeType.Text:
+                <textarea class="form-control" rows="4">@value?.ValueString</textarea>
+                <div class="form-text">@L["Markdown supported."]</div>
+                break;
+
+            case AttributeType.Image:
+                @* The file never touches this server: the widget uploads straight
+                   to Cloudinary and only the resulting URL is stored. *@
+                <div class="photo-drop" data-cloudinary-drop>
+                    @if (Model.HasValue)
+                    {
+                        <img src="@value!.ValueString" alt="@Model.Attribute.Name" class="img-thumbnail mb-2" style="max-height:140px" />
+                    }
+                    <div class="small text-body-secondary">@L["Drop an image here or click to choose"]</div>
+                </div>
+                <input type="hidden" value="@value?.ValueString" />
+                break;
+
+            default:
+                <input type="text" class="form-control" value="@value?.ValueString" />
+                break;
+        }
+
+        @if (!string.IsNullOrWhiteSpace(Model.Attribute.Description))
+        {
+            <div class="form-text">@Model.Attribute.Description</div>
+        }
+    }
+</div>

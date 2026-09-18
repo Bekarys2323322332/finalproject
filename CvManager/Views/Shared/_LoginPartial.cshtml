@@ -1,26 +1,34 @@
-﻿@using Microsoft.AspNetCore.Identity
-@inject SignInManager<IdentityUser> SignInManager
-@inject UserManager<IdentityUser> UserManager
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.Extensions.Localization
+@using CvManager
+@using CvManager.Models
+@* The template scaffolded this with IdentityUser; the app uses ApplicationUser,
+   and the injected type has to match the one registered in Program.cs. *@
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IStringLocalizer<SharedResource> L
 
-<ul class="navbar-nav">
-@if (SignInManager.IsSignedIn(User))
-{
-    <li class="nav-item">
-        <a  class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @User.Identity?.Name!</a>
-    </li>
-    <li class="nav-item">
-        <form  class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
-            <button  type="submit" class="nav-link btn btn-link text-dark">Logout</button>
-        </form>
-    </li>
-}
-else
-{
-    <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Register">Register</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Login">Login</a>
-    </li>
-}
+<ul class="navbar-nav flex-row gap-2">
+    @if (SignInManager.IsSignedIn(User))
+    {
+        <li class="nav-item">
+            <a class="nav-link" asp-area="Identity" asp-page="/Account/Manage/Index" title="@L["Manage account"]">
+                <i class="bi bi-person-circle"></i> @User.Identity?.Name
+            </a>
+        </li>
+        <li class="nav-item">
+            <form asp-area="Identity" asp-page="/Account/Logout" method="post"
+                  asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+                <button type="submit" class="btn btn-link nav-link">@L["Log out"]</button>
+            </form>
+        </li>
+    }
+    else
+    {
+        <li class="nav-item">
+            <a class="nav-link" asp-area="Identity" asp-page="/Account/Register">@L["Register"]</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" asp-area="Identity" asp-page="/Account/Login">@L["Log in"]</a>
+        </li>
+    }
 </ul>

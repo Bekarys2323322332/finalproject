@@ -1,0 +1,139 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@model CvManager.Models.ViewModels.AttributeIndexViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = L["Attribute library"].Value;
+}
+
+<h1 class="h4 mb-3">@L["Attribute library"]</h1>
+
+@* Filters. Both are plain GET parameters so a filtered list can be bookmarked
+   and the back button behaves. *@
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-12 col-md-4">
+        <label class="form-label small text-body-secondary" for="q">@L["Name starts with"]</label>
+        <input id="q" name="q" value="@Model.Query" class="form-control form-control-sm" />
+    </div>
+    <div class="col-12 col-md-3">
+        <label class="form-label small text-body-secondary" for="categoryId">@L["Category"]</label>
+        <select id="categoryId" name="categoryId" class="form-select form-select-sm">
+            <option value="">@L["All categories"]</option>
+            @foreach (var category in Model.Categories)
+            {
+                <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@category.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-outline-secondary" type="submit">@L["Apply"]</button>
+        <a class="btn btn-sm btn-link" asp-action="Index">@L["Reset"]</a>
+    </div>
+</form>
+
+<form id="attrForm" method="post" data-table-form>
+    @Html.AntiForgeryToken()
+
+    @* The single toolbar for the whole table. Buttons switch between enabled and
+       disabled depending on the selection - the spec forbids buttons in rows. *@
+    <div class="d-flex flex-wrap gap-2 mb-2">
+        <a class="btn btn-sm btn-primary" asp-action="Create">
+            <i class="bi bi-plus-lg"></i> @L["New attribute"]
+        </a>
+        <button class="btn btn-sm btn-outline-secondary" type="submit"
+                formaction="@Url.Action("EditSelected")" data-requires="one" disabled>
+            <i class="bi bi-pencil"></i> @L["Edit"]
+        </button>
+        <button class="btn btn-sm btn-outline-danger" type="button"
+                data-requires="any" disabled data-bs-toggle="modal" data-bs-target="#confirmDelete">
+            <i class="bi bi-trash"></i> @L["Delete"]
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle">
+            <thead>
+            <tr>
+                <th style="width:2.5rem">
+                    <input type="checkbox" class="form-check-input" data-select-all aria-label="@L["Select all"]" />
+                </th>
+                <th>@L["Name"]</th>
+                <th>@L["Category"]</th>
+                <th>@L["Type"]</th>
+                <th>@L["Description"]</th>
+                <th>@L["Last used"]</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var attr in Model.Items)
+            {
+                <tr data-row>
+                    <td>
+                        <input type="checkbox" name="ids" value="@attr.Id"
+                               class="form-check-input row-select" aria-label="@attr.Name" />
+                    </td>
+                    <td>
+                        @attr.Name
+                        @if (attr.IsSystem)
+                        {
+                            @* Built-in profile fields. Marked so a recruiter can see
+                               why the delete did not apply to them. *@
+                            <span class="badge text-bg-secondary ms-1">@L["built-in"]</span>
+                        }
+                    </td>
+                    <td>@attr.Category?.Name</td>
+                    <td><span class="badge text-bg-light">@attr.Type</span></td>
+                    <td class="text-body-secondary small">@attr.Description</td>
+                    <td class="text-body-secondary small">
+                        @(attr.LastUsedAt?.ToString("d MMM yyyy") ?? L["never"].Value)
+                    </td>
+                </tr>
+            }
+            @if (Model.Items.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="text-body-secondary">@L["Nothing found."]</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</form>
+
+@if (Model.TotalPages > 1)
+{
+    <nav>
+        <ul class="pagination pagination-sm">
+            @for (var p = 1; p <= Model.TotalPages; p++)
+            {
+                <li class="page-item @(p == Model.Page ? "active" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-q="@Model.Query"
+                       asp-route-categoryId="@Model.CategoryId" asp-route-page="@p">@p</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@* Bootstrap's modal instead of a browser confirm dialog. The submit button
+   lives outside the form and is tied back to it with the form attribute. *@
+<div class="modal fade" id="confirmDelete" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@L["Delete attributes?"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">
+                    @L["The selected attributes will be removed from every position template and every profile that used them. This cannot be undone."]
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@L["Cancel"]</button>
+                <button type="submit" form="attrForm" formaction="@Url.Action("Delete")"
+                        class="btn btn-danger">@L["Delete"]</button>
+            </div>
+        </div>
+    </div>
+</div>

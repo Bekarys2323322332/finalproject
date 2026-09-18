@@ -1,0 +1,144 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@model CvManager.Models.ViewModels.PositionIndexViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = L["Positions"].Value;
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+
+<h1 class="h4 mb-3">@L["Positions"]</h1>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-12 col-md-5">
+        <label class="form-label small text-body-secondary" for="q">@L["Search positions"]</label>
+        <input id="q" name="q" value="@Model.Query" class="form-control form-control-sm" />
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-outline-secondary" type="submit">@L["Apply"]</button>
+        <a class="btn btn-sm btn-link" asp-action="Index">@L["Reset"]</a>
+    </div>
+</form>
+
+<form id="posForm" method="post" data-table-form>
+    @Html.AntiForgeryToken()
+
+    @if (Model.CanManage)
+    {
+        @* One toolbar for the table. Duplicate needs exactly one row, delete
+           needs at least one. *@
+        <div class="d-flex flex-wrap gap-2 mb-2">
+            <button class="btn btn-sm btn-primary" type="submit" formaction="@Url.Action("Create")">
+                <i class="bi bi-plus-lg"></i> @L["New position"]
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" type="submit"
+                    formaction="@Url.Action("EditSelected")" data-requires="one" disabled>
+                <i class="bi bi-pencil"></i> @L["Edit"]
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" type="submit"
+                    formaction="@Url.Action("Duplicate")" data-requires="one" disabled>
+                <i class="bi bi-copy"></i> @L["Duplicate"]
+            </button>
+            <button class="btn btn-sm btn-outline-danger" type="button"
+                    data-requires="any" disabled data-bs-toggle="modal" data-bs-target="#confirmDelete">
+                <i class="bi bi-trash"></i> @L["Delete"]
+            </button>
+        </div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle">
+            <thead>
+            <tr>
+                @if (Model.CanManage)
+                {
+                    <th style="width:2.5rem">
+                        <input type="checkbox" class="form-check-input" data-select-all aria-label="@L["Select all"]" />
+                    </th>
+                }
+                <th>@L["Title"]</th>
+                <th>@L["Company"]</th>
+                <th>@L["Level"]</th>
+                <th>@L["Access"]</th>
+                <th class="text-end">@L["CVs"]</th>
+                <th>@L["Updated"]</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in Model.Items)
+            {
+                <tr data-row>
+                    @if (Model.CanManage)
+                    {
+                        <td>
+                            <input type="checkbox" name="ids" value="@item.Id"
+                                   class="form-check-input row-select" aria-label="@item.Title" />
+                        </td>
+                    }
+                    <td><a asp-action="Details" asp-route-id="@item.Id">@item.Title</a></td>
+                    <td class="text-body-secondary">@item.Company</td>
+                    <td class="text-body-secondary">@(item.Level?.ToString() ?? "")</td>
+                    <td>
+                        @if (item.IsPublic)
+                        {
+                            <span class="badge text-bg-success-subtle text-success-emphasis">@L["Public"]</span>
+                        }
+                        else if (signedIn && !Model.CanManage && Model.AccessibleIds.Contains(item.Id))
+                        {
+                            @* Restricted, but this candidate satisfies the rules. *@
+                            <span class="badge text-bg-info-subtle text-info-emphasis">@L["Available to you"]</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary-subtle text-secondary-emphasis">@L["Restricted"]</span>
+                        }
+                    </td>
+                    <td class="text-end">@item.CvCount</td>
+                    <td class="text-body-secondary small">@item.UpdatedAt.ToString("d MMM yyyy")</td>
+                </tr>
+            }
+            @if (Model.Items.Count == 0)
+            {
+                <tr>
+                    <td colspan="7" class="text-body-secondary">@L["Nothing found."]</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</form>
+
+@if (Model.TotalPages > 1)
+{
+    <nav>
+        <ul class="pagination pagination-sm">
+            @for (var p = 1; p <= Model.TotalPages; p++)
+            {
+                <li class="page-item @(p == Model.Page ? "active" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-q="@Model.Query" asp-route-page="@p">@p</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
+
+@if (Model.CanManage)
+{
+    <div class="modal fade" id="confirmDelete" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@L["Delete positions?"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">@L["The CVs created from these positions and their discussions will be deleted as well."]</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@L["Cancel"]</button>
+                    <button type="submit" form="posForm" formaction="@Url.Action("Delete")" class="btn btn-danger">@L["Delete"]</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

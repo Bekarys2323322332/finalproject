@@ -57,7 +57,13 @@ public class CvViewModel
     public required ApplicationUser Candidate { get; init; }
 
     // The attributes the position asks for, in the order the recruiter set.
+    // These are the ones that decide whether the CV may be published.
     public required List<CvAttributeRow> Attributes { get; init; }
+
+    // The built-in profile attributes (name, location, photo). A generated CV
+    // always shows these in its header, whether or not the recruiter put them on
+    // the template, because they are what identifies the candidate.
+    public List<CvAttributeRow> HeaderAttributes { get; init; } = [];
 
     // The candidate's projects that match the position's tag filter, newest
     // first, already cut down to the position's MaxProjects.
@@ -89,7 +95,11 @@ public class CvViewModel
 
     private string? TextOf(int attributeId)
     {
-        var row = Attributes.FirstOrDefault(a => a.Attribute.Id == attributeId);
+        // Looks in the header first, then in the template, so it works whether or
+        // not the recruiter asked for the field as well.
+        var row = HeaderAttributes.FirstOrDefault(a => a.Attribute.Id == attributeId)
+                  ?? Attributes.FirstOrDefault(a => a.Attribute.Id == attributeId);
+
         return row is { HasValue: true } ? row.Value?.ValueString : null;
     }
 }

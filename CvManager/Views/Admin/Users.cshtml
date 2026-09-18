@@ -1,0 +1,132 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@using CvManager.Models
+@model List<CvManager.Controllers.AdminUserRow>
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = L["Users"].Value;
+}
+
+<h1 class="h4 mb-3">@L["Users"]</h1>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-12 col-md-4">
+        <label class="form-label small text-body-secondary" for="q">@L["E-mail starts with"]</label>
+        <input id="q" name="q" value="@ViewData["Query"]" class="form-control form-control-sm" />
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-outline-secondary" type="submit">@L["Apply"]</button>
+        <a class="btn btn-sm btn-link" asp-action="Users">@L["Reset"]</a>
+    </div>
+</form>
+
+<form id="usersForm" method="post" data-table-form>
+    @Html.AntiForgeryToken()
+
+    @* One toolbar for everything; the rows carry no buttons. *@
+    <div class="d-flex flex-wrap gap-2 mb-2">
+        <button class="btn btn-sm btn-outline-danger" type="submit"
+                formaction="@Url.Action("Block")" data-requires="any" disabled>
+            <i class="bi bi-slash-circle"></i> @L["Block"]
+        </button>
+        <button class="btn btn-sm btn-outline-success" type="submit"
+                formaction="@Url.Action("Unblock")" data-requires="any" disabled>
+            <i class="bi bi-check-circle"></i> @L["Unblock"]
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" type="submit"
+                formaction="@Url.Action("OpenProfile")" data-requires="one" disabled>
+            <i class="bi bi-person-gear"></i> @L["Open profile"]
+        </button>
+        <button class="btn btn-sm btn-outline-danger" type="button"
+                data-requires="any" disabled data-bs-toggle="modal" data-bs-target="#confirmDelete">
+            <i class="bi bi-trash"></i> @L["Delete"]
+        </button>
+
+        <div class="vr"></div>
+
+        @* Role changes: pick the role, then grant or revoke it for the selection. *@
+        <select name="role" class="form-select form-select-sm" style="width:auto">
+            @foreach (var role in Roles.All)
+            {
+                <option value="@role">@role</option>
+            }
+        </select>
+        <button class="btn btn-sm btn-outline-primary" type="submit" name="grant" value="true"
+                formaction="@Url.Action("SetRole")" data-requires="any" disabled>
+            @L["Grant role"]
+        </button>
+        <button class="btn btn-sm btn-outline-warning" type="submit" name="grant" value="false"
+                formaction="@Url.Action("SetRole")" data-requires="any" disabled>
+            @L["Remove role"]
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle">
+            <thead>
+            <tr>
+                <th style="width:2.5rem">
+                    <input type="checkbox" class="form-check-input" data-select-all aria-label="@L["Select all"]" />
+                </th>
+                <th>@L["E-mail"]</th>
+                <th>@L["Roles"]</th>
+                <th>@L["State"]</th>
+                <th class="text-end">@L["CVs"]</th>
+                <th>@L["Registered"]</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var user in Model)
+            {
+                <tr data-row>
+                    <td>
+                        <input type="checkbox" name="ids" value="@user.Id"
+                               class="form-check-input row-select" aria-label="@user.Email" />
+                    </td>
+                    <td>@user.Email</td>
+                    <td>
+                        @foreach (var role in user.Roles)
+                        {
+                            <span class="badge text-bg-light me-1">@role</span>
+                        }
+                    </td>
+                    <td>
+                        @if (user.IsBlocked)
+                        {
+                            <span class="badge text-bg-danger">@L["blocked"]</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-success-subtle text-success-emphasis">@L["active"]</span>
+                        }
+                    </td>
+                    <td class="text-end">@user.CvCount</td>
+                    <td class="text-body-secondary small">@user.CreatedAt.ToString("d MMM yyyy")</td>
+                </tr>
+            }
+            @if (Model.Count == 0)
+            {
+                <tr><td colspan="6" class="text-body-secondary">@L["Nothing found."]</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</form>
+
+<div class="modal fade" id="confirmDelete" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@L["Delete users?"]</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">@L["Their profiles, projects, CVs and likes will be deleted as well."]</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@L["Cancel"]</button>
+                <button type="submit" form="usersForm" formaction="@Url.Action("Delete")" class="btn btn-danger">@L["Delete"]</button>
+            </div>
+        </div>
+    </div>
+</div>

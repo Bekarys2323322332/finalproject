@@ -1,0 +1,84 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@model CvManager.Models.ViewModels.ProjectEditViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = (isNew ? L["New project"] : L["Edit project"]).Value;
+}
+
+<h1 class="h4 mb-3">@(isNew ? L["New project"] : L["Edit project"])</h1>
+
+<form asp-action="SaveProject" method="post" class="row g-3" style="max-width:760px">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="Version" />
+    <input type="hidden" asp-for="OwnerId" />
+
+    <div asp-validation-summary="All" class="text-danger small"></div>
+
+    <div class="col-12">
+        <label asp-for="Name" class="form-label">@L["Name"]</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="StartDate" class="form-label">@L["From"]</label>
+        <input asp-for="StartDate" type="date" class="form-control" />
+    </div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="EndDate" class="form-label">@L["To (empty = ongoing)"]</label>
+        <input asp-for="EndDate" type="date" class="form-control" />
+    </div>
+
+    <div class="col-12">
+        <label asp-for="DescriptionMarkdown" class="form-label">@L["Description (Markdown)"]</label>
+        <textarea asp-for="DescriptionMarkdown" class="form-control" rows="6"></textarea>
+    </div>
+
+    <div class="col-12">
+        <label asp-for="Tags" class="form-label">@L["Technology tags"]</label>
+        @* Tagify with autocompletion over the tags already entered anywhere. *@
+        <input asp-for="Tags" id="tags" class="form-control" />
+        <div class="form-text">@L["Positions pick projects by these tags."]</div>
+    </div>
+
+    <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">@L["Save"]</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">@L["Cancel"]</a>
+    </div>
+</form>
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@yaireo/tagify@4.33.2/dist/tagify.css" />
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/@@yaireo/tagify@4.33.2/dist/tagify.min.js"></script>
+    <script>
+        (function () {
+            const input = document.getElementById('tags');
+            // Same as on the position editor: emit a comma separated list, not
+            // Tagify's default JSON, because that is what the server parses.
+            const tagify = new Tagify(input, {
+                delimiters: ',',
+                dropdown: { enabled: 1 },
+                originalInputValueFormat: function (values) {
+                    return values.map(function (v) { return v.value; }).join(',');
+                }
+            });
+
+            tagify.on('input', function (event) {
+                fetch('@Url.Action("Suggest", "Tags")?prefix=' + encodeURIComponent(event.detail.value))
+                    .then(function (r) { return r.json(); })
+                    .then(function (list) {
+                        tagify.settings.whitelist = list;
+                        tagify.dropdown.show(event.detail.value);
+                    });
+            });
+        })();
+    </script>
+}

@@ -32,15 +32,29 @@ public class CvBuilder
 
         // 1. What the position asks for, in the recruiter's order. Options are
         //    included because dropdown rows need them to render the <select>.
-        var attributes = await _db.PositionAttributes
+        // Include must be applied before any projection, so the join rows are
+        // loaded with their attribute and options and reshaped afterwards.
+        var templateRows = await _db.PositionAttributes
             .Where(pa => pa.PositionId == cv.PositionId)
             .OrderBy(pa => pa.SortOrder)
-            .Select(pa => pa.Attribute!)
-            .Include(a => a.Options.OrderBy(o => o.SortOrder))
+            .Include(pa => pa.Attribute!)
+            .ThenInclude(a => a.Options.OrderBy(o => o.SortOrder))
             .AsNoTracking()
             .ToListAsync();
 
-        var attributeIds = attributes.Select(a => a.Id).ToList();
+        var attributes = templateRows.Select(pa => pa.Attribute!).ToList();
+
+        // The four built-in attributes always belong to a CV's header, so they
+        // are loaded alongside whatever the position asked for.
+        var headerAttributes = await _db.LibraryAttributes
+            .Where(a => a.IsSystem)
+            .OrderBy(a => a.SortOrder)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var attributeIds = attributes.Select(a => a.Id)
+            .Union(headerAttributes.Select(a => a.Id))
+            .ToList();
 
         // 2. The candidate's answers for exactly those attributes - one query,
         //    then matched up in memory. Asking per attribute would be a query
@@ -52,6 +66,14 @@ public class CvBuilder
             .ToDictionaryAsync(v => v.AttributeId);
 
         var rows = attributes
+            .Select(a => new CvAttributeRow
+            {
+                Attribute = a,
+                Value = values.TryGetValue(a.Id, out var value) ? value : null
+            })
+            .ToList();
+
+        var headerRows = headerAttributes
             .Select(a => new CvAttributeRow
             {
                 Attribute = a,
@@ -72,6 +94,7 @@ public class CvBuilder
             Position = cv.Position,
             Candidate = cv.User,
             Attributes = rows,
+            HeaderAttributes = headerRows,
             Projects = projects,
             LikeCount = likeCount,
             LikedByCurrentUser = likedByMe,

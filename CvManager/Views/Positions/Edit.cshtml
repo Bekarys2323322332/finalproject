@@ -1,0 +1,416 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@using CvManager.Models
+@using CvManager.Services
+@model CvManager.Models.ViewModels.PositionEditViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = L["Edit position"].Value;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">@L["Edit position"]</h1>
+    <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Position.Id">
+        @L["View position"]
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-xl-6">
+        <div class="card">
+            <div class="card-header">@L["Basic information"]</div>
+            <div class="card-body">
+                <form asp-action="SaveBasics" method="post" class="row g-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Basics.Id" />
+                    @* Optimistic locking: this is the version the page was
+                       rendered with, and the save compares it. *@
+                    <input type="hidden" asp-for="Basics.Version" />
+
+                    <div class="col-12">
+                        <label asp-for="Basics.Title" class="form-label">@L["Title"]</label>
+                        <input asp-for="Basics.Title" class="form-control" />
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Basics.ShortDescription" class="form-label">@L["Short description"]</label>
+                        <textarea asp-for="Basics.ShortDescription" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Basics.Company" class="form-label">@L["Company"]</label>
+                        <input asp-for="Basics.Company" class="form-control" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Basics.Level" class="form-label">@L["Level"]</label>
+                        <select asp-for="Basics.Level" class="form-select">
+                            <option value="">—</option>
+                            @foreach (var level in Enum.GetValues<PositionLevel>())
+                            {
+                                <option value="@((int)level)" selected="@(Model.Basics.Level == level)">@level</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Basics.MaxProjects" class="form-label">@L["Max projects in CV"]</label>
+                        <input asp-for="Basics.MaxProjects" type="number" min="1" max="20" class="form-control" />
+                    </div>
+                    <div class="col-12 col-md-6 d-flex align-items-end">
+                        <div class="form-check">
+                            <input asp-for="Basics.IsPublic" class="form-check-input" />
+                            <label asp-for="Basics.IsPublic" class="form-check-label">@L["Public"]</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary btn-sm">@L["Save"]</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">@L["Projects included in the CV"]</div>
+            <div class="card-body">
+                <form asp-action="SaveProjectTags" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="positionId" value="@Model.Position.Id" />
+                    <label class="form-label" for="tags">@L["Project tags (comma separated)"]</label>
+                    @* Tagify turns this plain input into a tag control with
+                       autocomplete from the tags already in the database. *@
+                    <input id="tags" name="tags" class="form-control"
+                           value="@string.Join(", ", Model.ProjectTags)" />
+                    <div class="form-text">
+                        @L["Only projects carrying at least one of these tags go into the generated CV. Leave empty to take the candidate's most recent projects."]
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm mt-2">@L["Save tags"]</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card">
+            <div class="card-header">@L["Attributes asked for"]</div>
+            <div class="card-body">
+                @* The attribute picker: prefix lookup, category filter and
+                   recently used first when the box is empty. *@
+                <form asp-action="AddAttribute" method="post" class="row g-2 align-items-end mb-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="positionId" value="@Model.Position.Id" />
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-body-secondary" for="attrCategory">@L["Category"]</label>
+                        <select id="attrCategory" class="form-select form-select-sm">
+                            <option value="">@L["All categories"]</option>
+                            @foreach (var category in Model.Categories)
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-5">
+                        <label class="form-label small text-body-secondary" for="attrSearch">@L["Attribute"]</label>
+                        <input id="attrSearch" class="form-control form-control-sm" list="attrOptions"
+                               placeholder="@L["Start typing…"]" autocomplete="off" />
+                        <datalist id="attrOptions"></datalist>
+                        <select name="attributeId" id="attrPicked" class="form-select form-select-sm mt-1" required>
+                            <option value="">@L["Pick an attribute"]</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary">@L["Add"]</button>
+                    </div>
+                </form>
+
+                <form id="attrsForm" method="post" data-table-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="positionId" value="@Model.Position.Id" />
+                    <div class="mb-2">
+                        <button class="btn btn-sm btn-outline-danger" type="submit"
+                                formaction="@Url.Action("RemoveAttributes")" data-requires="any" disabled>
+                            <i class="bi bi-x-lg"></i> @L["Remove selected"]
+                        </button>
+                    </div>
+                    <table class="table table-sm align-middle">
+                        <thead>
+                        <tr>
+                            <th style="width:2.5rem">
+                                <input type="checkbox" class="form-check-input" data-select-all aria-label="@L["Select all"]" />
+                            </th>
+                            <th>@L["Name"]</th>
+                            <th>@L["Type"]</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var row in Model.Attributes)
+                        {
+                            <tr data-row>
+                                <td>
+                                    <input type="checkbox" name="attributeIds" value="@row.AttributeId"
+                                           class="form-check-input row-select" aria-label="@row.Attribute?.Name" />
+                                </td>
+                                <td>@row.Attribute?.Name</td>
+                                <td><span class="badge text-bg-light">@row.Attribute?.Type</span></td>
+                            </tr>
+                        }
+                        @if (Model.Attributes.Count == 0)
+                        {
+                            <tr><td colspan="3" class="text-body-secondary small">@L["No attributes yet - the generated CV would be empty."]</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">@L["Access rules"]</div>
+            <div class="card-body">
+                @if (Model.Basics.IsPublic)
+                {
+                    <p class="text-body-secondary small">
+                        @L["This position is public, so the rules below are ignored until you uncheck Public."]
+                    </p>
+                }
+
+                <form asp-action="AddRule" method="post" class="row g-2 align-items-end mb-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="positionId" value="@Model.Position.Id" />
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-body-secondary" for="ruleAttribute">@L["Attribute"]</label>
+                        <select id="ruleAttribute" name="attributeId" class="form-select form-select-sm" required>
+                            <option value="">@L["Pick an attribute"]</option>
+                            @foreach (var row in Model.Attributes)
+                            {
+                                <option value="@row.AttributeId" data-type="@row.Attribute?.Type">@row.Attribute?.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-body-secondary" for="ruleOp">@L["Condition"]</label>
+                        <select id="ruleOp" name="op" class="form-select form-select-sm">
+                            @foreach (var op in Enum.GetValues<RuleOperator>())
+                            {
+                                <option value="@((int)op)">@op</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small text-body-secondary" for="ruleValue">@L["Value"]</label>
+                        @* Two controls share the "value" name; the script enables
+                           whichever fits the attribute type and disables the other,
+                           and a disabled control is not submitted. *@
+                        <input id="ruleValue" name="value" class="form-control form-control-sm" />
+                        <select id="ruleValueSelect" name="value" class="form-select form-select-sm" hidden disabled></select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary">@L["Add"]</button>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-text">
+                            @L["Only attributes already added above can be used in a rule. Candidates must satisfy every rule."]
+                        </div>
+                    </div>
+                </form>
+
+                <form id="rulesForm" method="post" data-table-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="positionId" value="@Model.Position.Id" />
+                    <div class="mb-2">
+                        <button class="btn btn-sm btn-outline-danger" type="submit"
+                                formaction="@Url.Action("RemoveRules")" data-requires="any" disabled>
+                            <i class="bi bi-x-lg"></i> @L["Remove selected"]
+                        </button>
+                    </div>
+                    <table class="table table-sm align-middle">
+                        <thead>
+                        <tr>
+                            <th style="width:2.5rem">
+                                <input type="checkbox" class="form-check-input" data-select-all aria-label="@L["Select all"]" />
+                            </th>
+                            <th>@L["Rule"]</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var rule in Model.Rules)
+                        {
+                            <tr data-row>
+                                <td>
+                                    <input type="checkbox" name="ruleIds" value="@rule.Id"
+                                           class="form-check-input row-select" aria-label="@L["Rule"] @rule.Id" />
+                                </td>
+                                <td>
+                                    <strong>@rule.Attribute?.Name</strong>
+                                    <span class="text-body-secondary">@rule.Operator</span>
+                                    <span>
+                                        @(rule.ValueString
+                                            ?? rule.ValueNumber?.ToString()
+                                            ?? rule.ValueDate?.ToString("d MMM yyyy")
+                                            ?? (rule.ValueOptionId.HasValue ? "#" + rule.ValueOptionId : ""))
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                        @if (Model.Rules.Count == 0)
+                        {
+                            <tr><td colspan="2" class="text-body-secondary small">@L["No rules - every signed-in candidate may apply."]</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@yaireo/tagify@4.33.2/dist/tagify.css" />
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/@@yaireo/tagify@4.33.2/dist/tagify.min.js"></script>
+    <script>
+        // Tag input with autocomplete from the tags already in use.
+        (function () {
+            const input = document.getElementById('tags');
+            if (!input) return;
+
+            // originalInputValueFormat matters: by default Tagify writes a JSON
+            // array into the hidden original input, and the server expects a
+            // plain comma separated list.
+            const tagify = new Tagify(input, {
+                delimiters: ',',
+                whitelist: [],
+                dropdown: { enabled: 1 },
+                originalInputValueFormat: function (values) {
+                    return values.map(function (v) { return v.value; }).join(',');
+                }
+            });
+
+            tagify.on('input', function (event) {
+                fetch('@Url.Action("Suggest", "Tags")?prefix=' + encodeURIComponent(event.detail.value))
+                    .then(function (r) { return r.json(); })
+                    .then(function (list) {
+                        tagify.settings.whitelist = list;
+                        tagify.dropdown.show(event.detail.value);
+                    });
+            });
+        })();
+
+        // The attribute picker. Empty box means "recently used first", which is
+        // what the server returns when no query is given.
+        (function () {
+            const search = document.getElementById('attrSearch');
+            const category = document.getElementById('attrCategory');
+            const picked = document.getElementById('attrPicked');
+            const datalist = document.getElementById('attrOptions');
+            if (!search) return;
+
+            function load() {
+                const params = new URLSearchParams();
+                if (search.value) params.set('q', search.value);
+                if (category.value) params.set('categoryId', category.value);
+
+                fetch('@Url.Action("Suggest", "Attributes")?' + params.toString())
+                    .then(function (r) { return r.json(); })
+                    .then(function (items) {
+                        datalist.innerHTML = '';
+                        picked.innerHTML = '<option value="">@L["Pick an attribute"]</option>';
+                        items.forEach(function (item) {
+                            const option = document.createElement('option');
+                            option.value = item.name;
+                            datalist.appendChild(option);
+
+                            const choice = document.createElement('option');
+                            choice.value = item.id;
+                            choice.textContent = item.name + ' (' + item.type + ', ' + item.category + ')';
+                            picked.appendChild(choice);
+                        });
+                    });
+            }
+
+            let timer = null;
+            search.addEventListener('input', function () {
+                clearTimeout(timer);
+                timer = setTimeout(load, 200);
+            });
+            category.addEventListener('change', load);
+            load();
+        })();
+
+        // Offer only the operators that make sense for the chosen attribute's
+        // type, and hide the value box for the operators that need no value.
+        (function () {
+            const attributeSelect = document.getElementById('ruleAttribute');
+            const opSelect = document.getElementById('ruleOp');
+            const valueInput = document.getElementById('ruleValue');
+            const valueSelect = document.getElementById('ruleValueSelect');
+            if (!attributeSelect) return;
+
+            const byType = {
+                Boolean: ['IsChecked', 'IsNotChecked'],
+                Numeric: ['Equals', 'NotEquals', 'GreaterThan', 'GreaterOrEqual', 'LessThan', 'LessOrEqual', 'IsFilled'],
+                Date: ['Equals', 'NotEquals', 'GreaterThan', 'GreaterOrEqual', 'LessThan', 'LessOrEqual', 'IsFilled'],
+                Dropdown: ['Equals', 'NotEquals', 'IsFilled'],
+                String: ['Equals', 'NotEquals', 'Contains', 'IsFilled'],
+                Text: ['Equals', 'NotEquals', 'Contains', 'IsFilled'],
+                Image: ['IsFilled'],
+                Period: ['IsFilled']
+            };
+
+            const allOptions = Array.prototype.slice.call(opSelect.options).map(function (o) {
+                return { value: o.value, text: o.textContent };
+            });
+
+            function sync() {
+                const selected = attributeSelect.options[attributeSelect.selectedIndex];
+                const type = selected ? selected.getAttribute('data-type') : null;
+                const allowed = byType[type] || allOptions.map(function (o) { return o.text; });
+
+                opSelect.innerHTML = '';
+                allOptions.filter(function (o) { return allowed.indexOf(o.text) !== -1; })
+                    .forEach(function (o) {
+                        const option = document.createElement('option');
+                        option.value = o.value;
+                        option.textContent = o.text;
+                        opSelect.appendChild(option);
+                    });
+
+                syncValue();
+            }
+
+            function syncValue() {
+                const text = opSelect.options[opSelect.selectedIndex]?.textContent;
+                const needsNoValue = ['IsChecked', 'IsNotChecked', 'IsFilled'].indexOf(text) !== -1;
+                const selected = attributeSelect.options[attributeSelect.selectedIndex];
+                const type = selected ? selected.getAttribute('data-type') : null;
+                const isDropdown = type === 'Dropdown' && !needsNoValue;
+
+                valueInput.hidden = needsNoValue || isDropdown;
+                valueInput.disabled = needsNoValue || isDropdown;
+                valueSelect.hidden = !isDropdown;
+                valueSelect.disabled = !isDropdown;
+
+                if (needsNoValue) valueInput.value = '';
+                if (isDropdown) loadOptions(selected.value);
+            }
+
+            // A dropdown rule compares option ids, so the choices come from the
+            // server rather than being typed by hand.
+            function loadOptions(attributeId) {
+                fetch('@Url.Action("Options", "Attributes")?attributeId=' + attributeId)
+                    .then(function (r) { return r.json(); })
+                    .then(function (options) {
+                        valueSelect.innerHTML = '';
+                        options.forEach(function (option) {
+                            const element = document.createElement('option');
+                            element.value = option.id;
+                            element.textContent = option.value;
+                            valueSelect.appendChild(element);
+                        });
+                    });
+            }
+
+            attributeSelect.addEventListener('change', sync);
+            opSelect.addEventListener('change', syncValue);
+            sync();
+        })();
+    </script>
+}

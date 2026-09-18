@@ -67,6 +67,10 @@ if (!string.IsNullOrWhiteSpace(gitHubId) && !string.IsNullOrWhiteSpace(gitHubSec
 
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 
+// The auto-save posts JSON, so it cannot put the antiforgery token in a form
+// field - naming a header lets it send the token that way instead.
+builder.Services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
+
 builder.Services.AddControllersWithViews(options =>
     {
         // Runs before every action and throws out users who were blocked or

@@ -1,8 +1,74 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@using Microsoft.Extensions.Localization
+@using CvManager
+@model CvManager.Models.ViewModels.HomeViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = L["Home"].Value;
+
+    // Recruiters follow a tag to the CVs that match it, candidates to the
+    // positions asking for it, as the spec describes.
+    var tagGoesToCvs = User.IsInRole("Recruiter") || User.IsInRole("Admin");
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="row g-4">
+    <div class="col-12 col-lg-8">
+        <h1 class="h4">@L["Latest positions"]</h1>
+        <partial name="_PositionTable" model="Model.LatestPositions" />
+
+        <h2 class="h5 mt-4">@L["Most popular positions"]</h2>
+        <partial name="_PositionTable" model="Model.PopularPositions" />
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header">@L["Statistics"]</div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>@L["New CVs (24h)"]</span><strong>@Model.CvsLast24Hours</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>@L["Positions"]</span><strong>@Model.TotalPositions</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>@L["CVs total"]</span><strong>@Model.TotalCvs</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>@L["CVs published"]</span><strong>@Model.PublishedCvs</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>@L["Candidates"]</span><strong>@Model.TotalCandidates</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>@L["Recruiters"]</span><strong>@Model.TotalRecruiters</strong>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <div class="card-header">@L["Technology tags"]</div>
+            <div class="card-body">
+                @if (Model.Tags.Count == 0)
+                {
+                    <p class="text-body-secondary mb-0 small">@L["No tags yet."]</p>
+                }
+                else
+                {
+                    @* Font size scales with the tag's weight, which is what makes
+                       it a cloud rather than a list. *@
+                    var maxWeight = Model.Tags.Max(t => t.Weight);
+
+                    foreach (var tag in Model.Tags)
+                    {
+                        var scale = 0.85 + 0.9 * (tag.Weight / (double)maxWeight);
+                        <a class="me-2 text-decoration-none"
+                           style="font-size:@(scale.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture))rem"
+                           asp-controller="Search" asp-action="Index"
+                           asp-route-q="@tag.Name"
+                           asp-route-scope="@(tagGoesToCvs ? "cvs" : "positions")"
+                           title="@tag.Weight @L["projects"]">@tag.Name</a>
+                    }
+                }
+            </div>
+        </div>
+    </div>
 </div>

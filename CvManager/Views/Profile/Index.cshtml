@@ -1,0 +1,312 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@using CvManager.Models
+@using CvManager.Services
+@model CvManager.Models.ViewModels.ProfileViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = L["My profile"].Value;
+    var markdown = (MarkdownRenderer)ViewData["Markdown"]!;
+    var ownerId = Model.Owner.Id;
+    var isOwnPage = User.Identity?.Name == Model.Owner.UserName;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">
+        @(isOwnPage ? L["My profile"] : L["Profile"])
+        <span class="text-body-secondary fs-6">@Model.Owner.Email</span>
+    </h1>
+    @if (Model.CanEdit)
+    {
+        <span id="saveStatus" class="small text-body-secondary"></span>
+    }
+</div>
+
+@if (Model.CanEdit)
+{
+    <p class="small text-body-secondary">
+        @L["Everything on this page saves itself every few seconds. Values are shared with every CV that asks for them."]
+    </p>
+}
+
+<form id="valueEditor" data-owner-id="@ownerId" data-save-url="@Url.Action("Save", "Values")">
+    @Html.AntiForgeryToken()
+</form>
+
+<ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-me" type="button">@L["Me"]</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-info" type="button">@L["Info"]</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-projects" type="button">
+            @L["Projects"] <span class="badge text-bg-secondary">@Model.Projects.Count</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-cvs" type="button">
+            @L["CVs"] <span class="badge text-bg-secondary">@Model.Cvs.Count</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content border border-top-0 p-3">
+    @{
+        ViewData["Editable"] = Model.CanEdit;
+    }
+
+    @* --- Me: the built-in attributes, which cannot be removed --- *@
+    <div class="tab-pane fade show active" id="tab-me">
+        <div class="row">
+            <div class="col-12 col-md-6">
+                @foreach (var row in Model.MeAttributes)
+                {
+                    <partial name="_ValueField" model="row" />
+                }
+            </div>
+        </div>
+    </div>
+
+    @* --- Info: attributes the candidate picked from the library --- *@
+    <div class="tab-pane fade" id="tab-info">
+        @if (Model.CanEdit)
+        {
+            <form asp-action="AddAttribute" method="post" class="row g-2 align-items-end mb-3">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="ownerId" value="@ownerId" />
+                <div class="col-12 col-md-3">
+                    <label class="form-label small text-body-secondary" for="attrCategory">@L["Category"]</label>
+                    <select id="attrCategory" class="form-select form-select-sm">
+                        <option value="">@L["All categories"]</option>
+                        @foreach (var category in Model.Categories)
+                        {
+                            <option value="@category.Id">@category.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small text-body-secondary" for="attrSearch">@L["Find an attribute"]</label>
+                    <input id="attrSearch" class="form-control form-control-sm" placeholder="@L["Start typing…"]" autocomplete="off" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small text-body-secondary" for="attrPicked">@L["Attribute"]</label>
+                    <select name="attributeId" id="attrPicked" class="form-select form-select-sm" required>
+                        <option value="">@L["Pick an attribute"]</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm btn-primary" type="submit">@L["Add"]</button>
+                </div>
+            </form>
+        }
+
+        <form id="infoForm" method="post" data-table-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="ownerId" value="@ownerId" />
+
+            @if (Model.CanEdit && Model.InfoAttributes.Count > 0)
+            {
+                <div class="mb-2">
+                    <button class="btn btn-sm btn-outline-danger" type="submit"
+                            formaction="@Url.Action("RemoveAttributes")" data-requires="any" disabled>
+                        <i class="bi bi-x-lg"></i> @L["Remove selected"]
+                    </button>
+                </div>
+            }
+
+            <div class="row">
+                @foreach (var row in Model.InfoAttributes)
+                {
+                    <div class="col-12 col-md-6 d-flex gap-2">
+                        @if (Model.CanEdit)
+                        {
+                            <input type="checkbox" name="attributeIds" value="@row.Attribute.Id"
+                                   class="form-check-input row-select mt-4" aria-label="@row.Attribute.Name" />
+                        }
+                        <div class="flex-grow-1">
+                            <partial name="_ValueField" model="row" />
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (Model.InfoAttributes.Count == 0)
+            {
+                <p class="text-body-secondary small">@L["No attributes added yet."]</p>
+            }
+        </form>
+    </div>
+
+    @* --- Projects --- *@
+    <div class="tab-pane fade" id="tab-projects">
+        <form id="projectsForm" method="post" data-table-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="ownerId" value="@ownerId" />
+
+            @if (Model.CanEdit)
+            {
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <a class="btn btn-sm btn-primary" asp-action="Project" asp-route-ownerId="@ownerId">
+                        <i class="bi bi-plus-lg"></i> @L["New project"]
+                    </a>
+                    <button class="btn btn-sm btn-outline-secondary" type="submit"
+                            formaction="@Url.Action("EditProjectSelected")" data-requires="one" disabled>
+                        <i class="bi bi-pencil"></i> @L["Edit"]
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" type="submit"
+                            formaction="@Url.Action("DeleteProjects")" data-requires="any" disabled>
+                        <i class="bi bi-trash"></i> @L["Delete"]
+                    </button>
+                </div>
+            }
+
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead>
+                    <tr>
+                        @if (Model.CanEdit)
+                        {
+                            <th style="width:2.5rem">
+                                <input type="checkbox" class="form-check-input" data-select-all aria-label="@L["Select all"]" />
+                            </th>
+                        }
+                        <th>@L["Name"]</th>
+                        <th>@L["Period"]</th>
+                        <th>@L["Tags"]</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var project in Model.Projects)
+                    {
+                        <tr data-row>
+                            @if (Model.CanEdit)
+                            {
+                                <td>
+                                    <input type="checkbox" name="ids" value="@project.Id"
+                                           class="form-check-input row-select" aria-label="@project.Name" />
+                                </td>
+                            }
+                            <td>
+                                <div class="fw-semibold">@project.Name</div>
+                                <div class="small">@Html.Raw(markdown.ToHtml(project.DescriptionMarkdown))</div>
+                            </td>
+                            <td class="text-body-secondary small">
+                                @project.StartDate.ToString("MMM yyyy") —
+                                @(project.EndDate?.ToString("MMM yyyy") ?? L["present"].Value)
+                            </td>
+                            <td>
+                                @foreach (var tag in project.ProjectTags)
+                                {
+                                    <span class="badge text-bg-secondary me-1">@tag.Tag?.Name</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Projects.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-body-secondary">@L["No projects yet."]</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </div>
+
+    @* --- CVs --- *@
+    <div class="tab-pane fade" id="tab-cvs">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                <tr>
+                    <th>@L["Position"]</th>
+                    <th>@L["State"]</th>
+                    <th class="text-end">@L["Likes"]</th>
+                    <th>@L["Updated"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var cv in Model.Cvs)
+                {
+                    <tr>
+                        <td>
+                            @if (cv.Hidden)
+                            {
+                                @* The row still exists; access was lost, so it is
+                                   only hidden from use. *@
+                                <span class="text-body-secondary">@cv.PositionTitle</span>
+                                <span class="badge text-bg-warning-subtle text-warning-emphasis ms-1">@L["hidden - no access"]</span>
+                            }
+                            else
+                            {
+                                <a asp-controller="Cvs" asp-action="Details" asp-route-id="@cv.Id">@cv.PositionTitle</a>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge @(cv.State == CvState.Published ? "text-bg-success" : "text-bg-secondary")">
+                                @cv.State
+                            </span>
+                        </td>
+                        <td class="text-end">@cv.Likes</td>
+                        <td class="text-body-secondary small">@cv.UpdatedAt.ToString("d MMM yyyy")</td>
+                    </tr>
+                }
+                @if (Model.Cvs.Count == 0)
+                {
+                    <tr>
+                        <td colspan="4" class="text-body-secondary">
+                            @L["No CVs yet."]
+                            <a asp-controller="Positions" asp-action="Index">@L["Browse positions"]</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @if (Model.CanEdit)
+    {
+        <script src="~/js/value-editor.js" asp-append-version="true"></script>
+        <partial name="_CloudinaryUploader" />
+        <script>
+            // Same attribute picker as the position editor: prefix lookup,
+            // category filter, recently used first when the box is empty.
+            (function () {
+                const search = document.getElementById('attrSearch');
+                const category = document.getElementById('attrCategory');
+                const picked = document.getElementById('attrPicked');
+                if (!search) return;
+
+                function load() {
+                    const params = new URLSearchParams();
+                    if (search.value) params.set('q', search.value);
+                    if (category.value) params.set('categoryId', category.value);
+
+                    fetch('@Url.Action("Suggest", "Attributes")?' + params.toString())
+                        .then(function (r) { return r.json(); })
+                        .then(function (items) {
+                            picked.innerHTML = '<option value="">@L["Pick an attribute"]</option>';
+                            items.forEach(function (item) {
+                                const option = document.createElement('option');
+                                option.value = item.id;
+                                option.textContent = item.name + ' (' + item.type + ', ' + item.category + ')';
+                                picked.appendChild(option);
+                            });
+                        });
+                }
+
+                let timer = null;
+                search.addEventListener('input', function () {
+                    clearTimeout(timer);
+                    timer = setTimeout(load, 200);
+                });
+                category.addEventListener('change', load);
+                load();
+            })();
+        </script>
+    }
+}

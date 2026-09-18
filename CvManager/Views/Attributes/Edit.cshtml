@@ -1,0 +1,93 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@using CvManager.Models
+@model CvManager.Models.ViewModels.AttributeEditViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    var isNew = Model.Id == 0;
+    ViewData["Title"] = (isNew ? L["New attribute"] : L["Edit attribute"]).Value;
+}
+
+<h1 class="h4 mb-3">@(isNew ? L["New attribute"] : L["Edit attribute"])</h1>
+
+<form asp-action="Save" method="post" class="row g-3" style="max-width:720px">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    @* The version travels with the form. On save it goes into the WHERE clause,
+       which is what detects a concurrent edit. *@
+    <input type="hidden" asp-for="Version" />
+    <input type="hidden" asp-for="IsSystem" />
+
+    <div asp-validation-summary="All" class="text-danger small"></div>
+
+    <div class="col-12">
+        <label asp-for="Name" class="form-label">@L["Name"]</label>
+        <input asp-for="Name" class="form-control" />
+        <div class="form-text">@L["Attribute names are unique across the whole library."]</div>
+        <span asp-validation-for="Name" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="CategoryId" class="form-label">@L["Category"]</label>
+        <select asp-for="CategoryId" class="form-select">
+            @foreach (var category in Model.Categories)
+            {
+                <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@category.Name</option>
+            }
+        </select>
+        <div class="form-text">@L["Only used to group and filter the library."]</div>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="Type" class="form-label">@L["Type"]</label>
+        <select asp-for="Type" id="typeSelect" class="form-select" disabled="@Model.IsSystem">
+            @foreach (var type in Enum.GetValues<AttributeType>())
+            {
+                <option value="@((int)type)" selected="@(Model.Type == type)">@type</option>
+            }
+        </select>
+        @if (Model.IsSystem)
+        {
+            <div class="form-text">@L["This is a built-in profile attribute, its type cannot be changed."]</div>
+        }
+    </div>
+
+    <div class="col-12">
+        <label asp-for="Description" class="form-label">@L["Description"]</label>
+        <textarea asp-for="Description" class="form-control" rows="2"></textarea>
+    </div>
+
+    @* Only meaningful for dropdowns, so it is hidden for the other types. *@
+    <div class="col-12" id="optionsBlock">
+        <label asp-for="OptionsText" class="form-label">@L["Options (one per line)"]</label>
+        <textarea asp-for="OptionsText" class="form-control" rows="5"
+                  placeholder="None&#10;Essentials&#10;Pro&#10;Expert"></textarea>
+        <div class="form-text">
+            @L["Renaming a line replaces that choice; lines you keep unchanged keep the answers candidates already gave."]
+        </div>
+    </div>
+
+    <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">@L["Save"]</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">@L["Cancel"]</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Show the options textarea only for the Dropdown type.
+        (function () {
+            const select = document.getElementById('typeSelect');
+            const block = document.getElementById('optionsBlock');
+            const dropdownValue = '@((int)AttributeType.Dropdown)';
+
+            function sync() {
+                block.hidden = select.value !== dropdownValue;
+            }
+
+            select.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
+}

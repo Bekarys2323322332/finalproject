@@ -1,0 +1,280 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@using CvManager.Models
+@model CvManager.Models.ViewModels.PositionDetailsViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = Model.Position.Title;
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+        <h1 class="h4 mb-1">@Model.Position.Title</h1>
+        <div class="text-body-secondary small">
+            @Model.Position.Company
+            @if (Model.Position.Level is not null)
+            {
+                <span>· @Model.Position.Level</span>
+            }
+            <span>· @(Model.Position.IsPublic ? L["Public"] : L["Restricted"])</span>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        @if (Model.CanManage)
+        {
+            <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Position.Id">
+                <i class="bi bi-pencil"></i> @L["Edit"]
+            </a>
+        }
+
+        @* The CV entry point for a candidate: open the existing one, or create it
+           if the access rules let them. *@
+        @if (Model.MyCvId is not null)
+        {
+            <a class="btn btn-sm btn-primary" asp-controller="Cvs" asp-action="Details" asp-route-id="@Model.MyCvId">
+                @L["Open my CV"]
+            </a>
+        }
+        else if (signedIn && Model.CanApply)
+        {
+            <form asp-controller="Cvs" asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="positionId" value="@Model.Position.Id" />
+                <button class="btn btn-sm btn-primary" type="submit">@L["Create CV"]</button>
+            </form>
+        }
+        else if (signedIn && !Model.CanManage)
+        {
+            <span class="badge text-bg-secondary align-self-center">@L["You do not meet the access rules"]</span>
+        }
+    </div>
+</div>
+
+<ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-overview" type="button">
+            @L["Overview"]
+        </button>
+    </li>
+    @if (Model.CanSeeCvs)
+    {
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-cvs" type="button">
+                @L["CVs"] <span class="badge text-bg-secondary">@Model.Cvs.Count</span>
+            </button>
+        </li>
+    }
+    @if (signedIn)
+    {
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-discussion" type="button">
+                @L["Discussion"]
+            </button>
+        </li>
+    }
+</ul>
+
+<div class="tab-content border border-top-0 p-3">
+    <div class="tab-pane fade show active" id="tab-overview">
+        @if (!string.IsNullOrWhiteSpace(Model.Position.ShortDescription))
+        {
+            <p>@Model.Position.ShortDescription</p>
+        }
+
+        <h2 class="h6 mt-3">@L["Attributes asked for"]</h2>
+        @if (Model.Attributes.Count == 0)
+        {
+            <p class="text-body-secondary small">@L["None yet."]</p>
+        }
+        else
+        {
+            <ul class="list-unstyled">
+                @foreach (var row in Model.Attributes)
+                {
+                    <li>
+                        <strong>@row.Name</strong>
+                        <span class="badge text-bg-light">@row.Type</span>
+                        <span class="text-body-secondary small">@row.Category?.Name</span>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Model.ProjectTags.Count > 0)
+        {
+            <h2 class="h6 mt-3">@L["Project tags"]</h2>
+            <p>
+                @foreach (var tag in Model.ProjectTags)
+                {
+                    <span class="badge text-bg-secondary me-1">@tag</span>
+                }
+                <span class="text-body-secondary small">
+                    @L["at most"] @Model.Position.MaxProjects @L["projects"]
+                </span>
+            </p>
+        }
+
+        @if (!Model.Position.IsPublic && Model.Rules.Count > 0 && Model.CanManage)
+        {
+            <h2 class="h6 mt-3">@L["Access rules"]</h2>
+            <ul class="list-unstyled small">
+                @foreach (var rule in Model.Rules)
+                {
+                    <li>
+                        @rule.Attribute?.Name <em>@rule.Operator</em>
+                        @(rule.ValueString ?? rule.ValueNumber?.ToString() ?? rule.ValueDate?.ToString("d MMM yyyy") ?? "")
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    @if (Model.CanSeeCvs)
+    {
+        <div class="tab-pane fade" id="tab-cvs">
+            @* Read-only list for recruiters. The candidate's name is the link;
+               there are no buttons in the rows. *@
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead>
+                    <tr>
+                        <th>@L["Candidate"]</th>
+                        <th>@L["State"]</th>
+                        <th class="text-end">@L["Likes"]</th>
+                        <th>@L["Updated"]</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var cv in Model.Cvs)
+                    {
+                        <tr>
+                            <td><a asp-controller="Cvs" asp-action="Details" asp-route-id="@cv.Id">@cv.CandidateName</a></td>
+                            <td>
+                                <span class="badge @(cv.State == CvState.Published ? "text-bg-success" : "text-bg-secondary")">
+                                    @cv.State
+                                </span>
+                            </td>
+                            <td class="text-end">@cv.Likes</td>
+                            <td class="text-body-secondary small">@cv.UpdatedAt.ToString("d MMM yyyy")</td>
+                        </tr>
+                    }
+                    @if (Model.Cvs.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-body-secondary">@L["No CVs for this position yet."]</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @if (signedIn)
+    {
+        <div class="tab-pane fade" id="tab-discussion">
+            @* Append-only discussion. The list is filled and refreshed by polling
+               so other people's posts show up within a few seconds. *@
+            <div id="posts" class="mb-3"></div>
+
+            <form id="postForm" class="row g-2">
+                @Html.AntiForgeryToken()
+                <div class="col-12">
+                    <label class="form-label small text-body-secondary" for="body">
+                        @L["New post (Markdown supported)"]
+                    </label>
+                    <textarea id="body" name="body" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="col-12">
+                    <button class="btn btn-sm btn-primary" type="submit">@L["Post"]</button>
+                    <span id="postStatus" class="small text-body-secondary ms-2"></span>
+                </div>
+            </form>
+        </div>
+    }
+</div>
+
+@if (signedIn)
+{
+    @section Scripts {
+        <script>
+            (function () {
+                const positionId = @Model.Position.Id;
+                const container = document.getElementById('posts');
+                const form = document.getElementById('postForm');
+                const body = document.getElementById('body');
+                const status = document.getElementById('postStatus');
+                const token = form.querySelector('input[name="__RequestVerificationToken"]').value;
+
+                // Only posts newer than this are requested, so each poll carries
+                // just the new messages instead of the whole thread.
+                let lastId = 0;
+
+                function render(posts) {
+                    posts.forEach(function (post) {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'border-bottom pb-2 mb-2';
+
+                        const head = document.createElement('div');
+                        head.className = 'small text-body-secondary';
+
+                        if (post.authorId) {
+                            const link = document.createElement('a');
+                            link.href = '@Url.Action("View", "Profile")?userId=' + encodeURIComponent(post.authorId);
+                            link.textContent = post.authorName;
+                            head.appendChild(link);
+                        } else {
+                            head.appendChild(document.createTextNode(post.authorName));
+                        }
+
+                        head.appendChild(document.createTextNode(
+                            ' · ' + new Date(post.createdAt).toLocaleString()));
+
+                        const content = document.createElement('div');
+                        // The server rendered the markdown with raw HTML disabled,
+                        // so this is safe to insert.
+                        content.innerHTML = post.html;
+
+                        wrapper.appendChild(head);
+                        wrapper.appendChild(content);
+                        container.appendChild(wrapper);
+
+                        if (post.id > lastId) lastId = post.id;
+                    });
+                }
+
+                function poll() {
+                    fetch('@Url.Action("Messages")?id=' + positionId + '&afterId=' + lastId)
+                        .then(function (r) { return r.json(); })
+                        .then(render)
+                        .catch(function () { /* a failed poll just retries later */ });
+                }
+
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+                    if (!body.value.trim()) return;
+
+                    const data = new FormData();
+                    data.append('id', positionId);
+                    data.append('body', body.value);
+                    data.append('__RequestVerificationToken', token);
+
+                    fetch('@Url.Action("PostMessage")', { method: 'POST', body: data })
+                        .then(function (response) {
+                            if (response.ok) {
+                                body.value = '';
+                                status.textContent = '';
+                                poll();
+                            } else {
+                                status.textContent = '@L["Could not post, try again."]';
+                            }
+                        });
+                });
+
+                poll();
+                // Between 2 and 5 seconds is what the spec asks for.
+                setInterval(poll, 3000);
+            })();
+        </script>
+    }
+}

@@ -1,0 +1,153 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@using CvManager.Models
+@using CvManager.Services
+@model CvManager.Models.ViewModels.CvViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = Model.FullName + " - " + Model.Position.Title;
+    var markdown = (MarkdownRenderer)ViewData["Markdown"]!;
+    var canLike = User.IsInRole("Recruiter") || User.IsInRole("Admin");
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div class="d-flex gap-3">
+        @* Photo, name and location always come from the profile, even when the
+           position did not ask for them - they are what identifies the CV. *@
+        @if (!string.IsNullOrWhiteSpace(Model.PhotoUrl))
+        {
+            <img src="@Model.PhotoUrl" alt="@Model.FullName" class="rounded" style="height:72px;width:72px;object-fit:cover" />
+        }
+        <div>
+        <h1 class="h4 mb-1">@Model.Position.Title</h1>
+        <div class="text-body-secondary">
+            @Model.FullName
+            @if (!string.IsNullOrWhiteSpace(Model.Location))
+            {
+                <span>· @Model.Location</span>
+            }
+            <span class="badge @(Model.Cv.State == CvState.Published ? "text-bg-success" : "text-bg-secondary") ms-1">
+                @Model.Cv.State
+            </span>
+        </div>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+        <span class="badge text-bg-light">
+            <i class="bi bi-heart-fill text-danger"></i> @Model.LikeCount
+        </span>
+
+        @if (canLike)
+        {
+            <form asp-action="ToggleLike" asp-route-id="@Model.Cv.Id" method="post">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-sm @(Model.LikedByCurrentUser ? "btn-danger" : "btn-outline-danger")" type="submit">
+                    <i class="bi bi-heart"></i> @(Model.LikedByCurrentUser ? L["Unlike"] : L["Like"])
+                </button>
+            </form>
+        }
+
+        @if (Model.CanEdit)
+        {
+            @* Publish is only offered when nothing is missing - the server checks
+               it again anyway. *@
+            @if (Model.Cv.State == CvState.Draft)
+            {
+                <form asp-action="Publish" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Cv.Id" />
+                    <input type="hidden" name="version" value="@Model.Cv.Version" />
+                    <button class="btn btn-sm btn-primary" type="submit" disabled="@(!Model.IsComplete)"
+                            title="@(Model.IsComplete ? L["Make this CV visible to recruiters"].Value : L["Fill in every highlighted field first"].Value)">
+                        @L["Publish"]
+                    </button>
+                </form>
+            }
+            else
+            {
+                <form asp-action="Unpublish" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Cv.Id" />
+                    <input type="hidden" name="version" value="@Model.Cv.Version" />
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">@L["Back to draft"]</button>
+                </form>
+            }
+        }
+    </div>
+</div>
+
+@if (Model.CanEdit)
+{
+    <div class="alert alert-light border d-flex justify-content-between align-items-center py-2">
+        <span class="small text-body-secondary">
+            @L["Changes save themselves every few seconds. Editing a field here also updates it on your profile and in your other CVs, because a value is stored once."]
+        </span>
+        <span id="saveStatus" class="small text-body-secondary"></span>
+    </div>
+}
+
+@* data-owner-id lets an admin save on behalf of the candidate; the server
+   ignores it for everybody else. *@
+<form id="valueEditor" data-owner-id="@Model.Candidate.Id" data-save-url="@Url.Action("Save", "Values")">
+    @Html.AntiForgeryToken()
+</form>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-7">
+        <section class="cv-section">
+            <h2 class="h6 text-uppercase text-body-secondary">@L["Details"]</h2>
+            @{
+                ViewData["Editable"] = Model.CanEdit;
+            }
+            @foreach (var row in Model.Attributes)
+            {
+                <partial name="_ValueField" model="row" />
+            }
+            @if (Model.Attributes.Count == 0)
+            {
+                <p class="text-body-secondary small">@L["This position asks for no attributes yet."]</p>
+            }
+        </section>
+    </div>
+
+    <div class="col-12 col-lg-5">
+        <section class="cv-section">
+            <h2 class="h6 text-uppercase text-body-secondary">@L["Projects"]</h2>
+            @if (Model.Projects.Count == 0)
+            {
+                <p class="text-body-secondary small">
+                    @L["No projects match this position's tags. Add projects on your profile and tag them."]
+                </p>
+            }
+            else
+            {
+                foreach (var project in Model.Projects)
+                {
+                    <article class="mb-3">
+                        <div class="fw-semibold">@project.Name</div>
+                        <div class="small text-body-secondary">
+                            @project.StartDate.ToString("MMM yyyy") —
+                            @(project.EndDate?.ToString("MMM yyyy") ?? L["present"].Value)
+                        </div>
+                        <div>@Html.Raw(markdown.ToHtml(project.DescriptionMarkdown))</div>
+                        <div>
+                            @foreach (var tag in project.ProjectTags)
+                            {
+                                <span class="badge text-bg-secondary me-1">@tag.Tag?.Name</span>
+                            }
+                        </div>
+                    </article>
+                }
+            }
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    @if (Model.CanEdit)
+    {
+        <script src="~/js/value-editor.js" asp-append-version="true"></script>
+        <partial name="_CloudinaryUploader" />
+    }
+}

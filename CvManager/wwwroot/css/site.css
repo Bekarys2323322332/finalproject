@@ -1,31 +1,43 @@
-html {
-  font-size: 14px;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
+/* Only the few rules Bootstrap does not already cover. */
 
 html {
-  position: relative;
-  min-height: 100%;
+    font-size: 15px;
 }
 
-body {
-  margin-bottom: 60px;
+/* An attribute with no value. Both the candidate filling a CV in and the
+   recruiter reading it need to see straight away what is missing. */
+.value-missing input,
+.value-missing textarea,
+.value-missing select {
+    border-color: var(--bs-danger);
+    background-color: rgba(220, 53, 69, 0.06);
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+.value-missing .value-readonly {
+    color: var(--bs-danger);
+    font-style: italic;
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+/* A value that someone else changed while this page was open. It stays marked
+   until the next successful save so the change is not missed. */
+.value-conflict input,
+.value-conflict textarea,
+.value-conflict select {
+    outline: 2px solid var(--bs-warning);
+}
+
+.cv-section + .cv-section {
+    margin-top: 1.5rem;
+}
+
+.photo-drop {
+    border: 2px dashed var(--bs-border-color);
+    border-radius: .5rem;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+}
+
+.photo-drop.dragover {
+    border-color: var(--bs-primary);
 }

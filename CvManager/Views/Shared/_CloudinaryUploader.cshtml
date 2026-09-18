@@ -1,0 +1,96 @@
+@inject IConfiguration Configuration
+@{
+    // Images go straight from the browser to Cloudinary; the app only ever
+    // stores the URL Cloudinary returns. Nothing is written to this server or
+    // into the database, which is what the spec requires.
+    var cloudName = Configuration["Cloudinary:CloudName"];
+    var uploadPreset = Configuration["Cloudinary:UploadPreset"];
+}
+
+@if (!string.IsNullOrWhiteSpace(cloudName) && !string.IsNullOrWhiteSpace(uploadPreset))
+{
+    <script src="https://upload-widget.cloudinary.com/global/all.js"></script>
+    <script>
+        (function () {
+            const widget = cloudinary.createUploadWidget(
+                {
+                    cloudName: '@cloudName',
+                    // An unsigned preset, so no API secret is needed in the browser.
+                    uploadPreset: '@uploadPreset',
+                    sources: ['local', 'url', 'camera'],
+                    multiple: false,
+                    maxFileSize: 5000000
+                },
+                function (error, result) {
+                    if (error || !result || result.event !== 'success') {
+                        return;
+                    }
+
+                    const container = widget.currentField;
+                    if (!container) return;
+
+                    container.querySelector('input[type=hidden]').value = result.info.secure_url;
+
+                    let image = container.querySelector('img');
+                    if (!image) {
+                        image = document.createElement('img');
+                        image.className = 'img-thumbnail mb-2';
+                        image.style.maxHeight = '140px';
+                        container.querySelector('[data-cloudinary-drop]').prepend(image);
+                    }
+                    image.src = result.info.secure_url;
+
+                    // Tell the auto-save that this value changed.
+                    const attributeId = parseInt(container.getAttribute('data-attribute-id'), 10);
+                    window.valueEditor.markDirty(attributeId);
+                    window.valueEditor.flush();
+                });
+
+            document.querySelectorAll('[data-cloudinary-drop]').forEach(function (drop) {
+                const container = drop.closest('[data-value-field]');
+
+                drop.addEventListener('click', function () {
+                    // Remember which field the widget was opened for, because one
+                    // widget instance serves every image field on the page.
+                    widget.currentField = container;
+                    widget.open();
+                });
+
+                // The widget handles its own drag and drop once open; this only
+                // gives the drop zone some feedback and opens it on a drop.
+                drop.addEventListener('dragover', function (event) {
+                    event.preventDefault();
+                    drop.classList.add('dragover');
+                });
+                drop.addEventListener('dragleave', function () {
+                    drop.classList.remove('dragover');
+                });
+                drop.addEventListener('drop', function (event) {
+                    event.preventDefault();
+                    drop.classList.remove('dragover');
+                    widget.currentField = container;
+                    widget.open();
+                });
+            });
+        })();
+    </script>
+}
+else
+{
+    @* No Cloudinary keys configured yet, so image fields fall back to pasting a
+       URL by hand rather than breaking. *@
+    <script>
+        document.querySelectorAll('[data-cloudinary-drop]').forEach(function (drop) {
+            const container = drop.closest('[data-value-field]');
+            const hidden = container.querySelector('input[type=hidden]');
+
+            drop.addEventListener('click', function () {
+                const url = window.prompt('Image URL');
+                if (!url) return;
+                hidden.value = url;
+                window.valueEditor.markDirty(parseInt(container.getAttribute('data-attribute-id'), 10));
+                window.valueEditor.flush();
+            });
+        });
+    </script>
+}

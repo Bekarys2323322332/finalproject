@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Positions"><value>Вакансии</value></data>
+  <data name="Position"><value>Вакансия</value></data>
+  <data name="Attribute library"><value>Библиотека атрибутов</value></data>
+  <data name="My profile"><value>Мой профиль</value></data>
+  <data name="Profile"><value>Профиль</value></data>
+  <data name="Users"><value>Пользователи</value></data>
+  <data name="Search"><value>Поиск</value></data>
+  <data name="Search positions, candidates, projects"><value>Поиск вакансий, кандидатов, проектов</value></data>
+  <data name="Search positions"><value>Поиск вакансий</value></data>
+  <data name="Switch theme"><value>Переключить тему</value></data>
+  <data name="Language"><value>Язык</value></data>
+  <data name="Close"><value>Закрыть</value></data>
+  <data name="Log out"><value>Выйти</value></data>
+  <data name="Log in"><value>Войти</value></data>
+  <data name="Register"><value>Регистрация</value></data>
+  <data name="Manage account"><value>Управление аккаунтом</value></data>
+  <data name="Home"><value>Главная</value></data>
+
+  <data name="Latest positions"><value>Последние вакансии</value></data>
+  <data name="Most popular positions"><value>Самые популярные вакансии</value></data>
+  <data name="Statistics"><value>Статистика</value></data>
+  <data name="New CVs (24h)"><value>Новые резюме (24 ч)</value></data>
+  <data name="CVs total"><value>Всего резюме</value></data>
+  <data name="CVs published"><value>Опубликованных резюме</value></data>
+  <data name="Candidates"><value>Кандидаты</value></data>
+  <data name="Recruiters"><value>Рекрутеры</value></data>
+  <data name="Technology tags"><value>Технологические теги</value></data>
+  <data name="No tags yet."><value>Пока нет тегов.</value></data>
+  <data name="projects"><value>проектов</value></data>
+  <data name="Nothing here yet."><value>Здесь пока ничего нет.</value></data>
+
+  <data name="Title"><value>Название</value></data>
+  <data name="Company"><value>Компания</value></data>
+  <data name="Level"><value>Уровень</value></data>
+  <data name="CVs"><value>Резюме</value></data>
+  <data name="Updated"><value>Обновлено</value></data>
+  <data name="Access"><value>Доступ</value></data>
+  <data name="Public"><value>Открытая</value></data>
+  <data name="Restricted"><value>Ограниченная</value></data>
+  <data name="Restricted access"><value>Ограниченный доступ</value></data>
+  <data name="Available to you"><value>Доступна вам</value></data>
+  <data name="Name"><value>Имя</value></data>
+  <data name="Category"><value>Категория</value></data>
+  <data name="Type"><value>Тип</value></data>
+  <data name="Description"><value>Описание</value></data>
+  <data name="Last used"><value>Использован</value></data>
+  <data name="never"><value>никогда</value></data>
+  <data name="built-in"><value>встроенный</value></data>
+  <data name="Nothing found."><value>Ничего не найдено.</value></data>
+  <data name="All categories"><value>Все категории</value></data>
+  <data name="Name starts with"><value>Название начинается с</value></data>
+  <data name="E-mail starts with"><value>E-mail начинается с</value></data>
+  <data name="Apply"><value>Применить</value></data>
+  <data name="Reset"><value>Сбросить</value></data>
+  <data name="Select all"><value>Выбрать все</value></data>
+
+  <data name="New attribute"><value>Новый атрибут</value></data>
+  <data name="Edit attribute"><value>Редактировать атрибут</value></data>
+  <data name="Edit"><value>Редактировать</value></data>
+  <data name="Delete"><value>Удалить</value></data>
+  <data name="Cancel"><value>Отмена</value></data>
+  <data name="Save"><value>Сохранить</value></data>
+  <data name="Add"><value>Добавить</value></data>
+  <data name="Remove selected"><value>Удалить выбранные</value></data>
+  <data name="Delete attributes?"><value>Удалить атрибуты?</value></data>
+  <data name="Options (one per line)"><value>Варианты (по одному в строке)</value></data>
+  <data name="Attribute names are unique across the whole library."><value>Названия атрибутов уникальны во всей библиотеке.</value></data>
+  <data name="Only used to group and filter the library."><value>Используется только для группировки и фильтрации библиотеки.</value></data>
+  <data name="This is a built-in profile attribute, its type cannot be changed."><value>Это встроенный атрибут профиля, его тип нельзя изменить.</value></data>
+
+  <data name="New position"><value>Новая вакансия</value></data>
+  <data name="Edit position"><value>Редактировать вакансию</value></data>
+  <data name="View position"><value>Посмотреть вакансию</value></data>
+  <data name="Duplicate"><value>Дублировать</value></data>
+  <data name="Delete positions?"><value>Удалить вакансии?</value></data>
+  <data name="Basic information"><value>Основная информация</value></data>
+  <data name="Short description"><value>Краткое описание</value></data>
+  <data name="Max projects in CV"><value>Максимум проектов в резюме</value></data>
+  <data name="Attributes asked for"><value>Запрашиваемые атрибуты</value></data>
+  <data name="Access rules"><value>Правила доступа</value></data>
+  <data name="Rule"><value>Правило</value></data>
+  <data name="Condition"><value>Условие</value></data>
+  <data name="Value"><value>Значение</value></data>
+  <data name="Attribute"><value>Атрибут</value></data>
+  <data name="Pick an attribute"><value>Выберите атрибут</value></data>
+  <data name="Start typing…"><value>Начните печатать…</value></data>
+  <data name="Find an attribute"><value>Найти атрибут</value></data>
+  <data name="Projects included in the CV"><value>Проекты, включаемые в резюме</value></data>
+  <data name="Project tags (comma separated)"><value>Теги проектов (через запятую)</value></data>
+  <data name="Save tags"><value>Сохранить теги</value></data>
+  <data name="Project tags"><value>Теги проектов</value></data>
+  <data name="at most"><value>не более</value></data>
+  <data name="Overview"><value>Обзор</value></data>
+  <data name="Discussion"><value>Обсуждение</value></data>
+  <data name="None yet."><value>Пока ничего.</value></data>
+  <data name="Candidate"><value>Кандидат</value></data>
+  <data name="State"><value>Статус</value></data>
+  <data name="Likes"><value>Лайки</value></data>
+  <data name="No CVs for this position yet."><value>Для этой вакансии пока нет резюме.</value></data>
+  <data name="New post (Markdown supported)"><value>Новое сообщение (поддерживается Markdown)</value></data>
+  <data name="Post"><value>Отправить</value></data>
+  <data name="Could not post, try again."><value>Не удалось отправить, попробуйте снова.</value></data>
+  <data name="Create CV"><value>Создать резюме</value></data>
+  <data name="Open my CV"><value>Открыть моё резюме</value></data>
+  <data name="You do not meet the access rules"><value>Вы не соответствуете правилам доступа</value></data>
+
+  <data name="Me"><value>Обо мне</value></data>
+  <data name="Info"><value>Сведения</value></data>
+  <data name="Projects"><value>Проекты</value></data>
+  <data name="New project"><value>Новый проект</value></data>
+  <data name="Edit project"><value>Редактировать проект</value></data>
+  <data name="No projects yet."><value>Пока нет проектов.</value></data>
+  <data name="No attributes added yet."><value>Атрибуты пока не добавлены.</value></data>
+  <data name="Period"><value>Период</value></data>
+  <data name="Tags"><value>Теги</value></data>
+  <data name="Technology tags"><value>Технологические теги</value></data>
+  <data name="From"><value>С</value></data>
+  <data name="To (empty = ongoing)"><value>По (пусто = продолжается)</value></data>
+  <data name="Description (Markdown)"><value>Описание (Markdown)</value></data>
+  <data name="present"><value>по настоящее время</value></data>
+  <data name="No CVs yet."><value>Пока нет резюме.</value></data>
+  <data name="Browse positions"><value>Посмотреть вакансии</value></data>
+  <data name="hidden - no access"><value>скрыто — нет доступа</value></data>
+  <data name="Positions pick projects by these tags."><value>Вакансии подбирают проекты по этим тегам.</value></data>
+
+  <data name="Details"><value>Детали</value></data>
+  <data name="Publish"><value>Опубликовать</value></data>
+  <data name="Back to draft"><value>Вернуть в черновик</value></data>
+  <data name="Like"><value>Нравится</value></data>
+  <data name="Unlike"><value>Не нравится</value></data>
+  <data name="missing"><value>не заполнено</value></data>
+  <data name="not filled in"><value>не заполнено</value></data>
+  <data name="Yes / no"><value>Да / нет</value></data>
+  <data name="— not selected —"><value>— не выбрано —</value></data>
+  <data name="Markdown supported."><value>Поддерживается Markdown.</value></data>
+  <data name="Drop an image here or click to choose"><value>Перетащите изображение сюда или нажмите для выбора</value></data>
+  <data name="Leave the second date empty if it is still ongoing."><value>Оставьте вторую дату пустой, если период продолжается.</value></data>
+  <data name="Fill in every highlighted field first"><value>Сначала заполните все выделенные поля</value></data>
+  <data name="Make this CV visible to recruiters"><value>Сделать резюме видимым для рекрутеров</value></data>
+  <data name="This position asks for no attributes yet."><value>Для этой вакансии пока не заданы атрибуты.</value></data>
+
+  <data name="Block"><value>Заблокировать</value></data>
+  <data name="Unblock"><value>Разблокировать</value></data>
+  <data name="Open profile"><value>Открыть профиль</value></data>
+  <data name="Grant role"><value>Назначить роль</value></data>
+  <data name="Remove role"><value>Снять роль</value></data>
+  <data name="Roles"><value>Роли</value></data>
+  <data name="E-mail"><value>E-mail</value></data>
+  <data name="Registered"><value>Зарегистрирован</value></data>
+  <data name="blocked"><value>заблокирован</value></data>
+  <data name="active"><value>активен</value></data>
+  <data name="Delete users?"><value>Удалить пользователей?</value></data>
+  <data name="My projects"><value>Мои проекты</value></data>
+  <data name="Type something in the search box at the top."><value>Введите запрос в поле поиска сверху.</value></data>
+</root>

@@ -1,51 +1,118 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+@using Microsoft.Extensions.Localization
+@using CvManager
+@inject IStringLocalizer<SharedResource> L
+@{
+    // Bootstrap 5.3 switches the whole palette from this attribute, so the theme
+    // toggle only has to change one value.
+    var theme = Context.Request.Cookies["theme"] ?? "light";
+    var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+}
+<!DOCTYPE html>
+<html lang="@culture" data-bs-theme="@theme">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - CvManager</title>
-    <script type="importmap"></script>
+    <title>@ViewData["Title"] - CV Manager</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/CvManager.styles.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">CvManager</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
+<header>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" asp-controller="Home" asp-action="Index">CV Manager</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="nav">
+                <ul class="navbar-nav me-3">
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Positions" asp-action="Index">@L["Positions"]</a>
+                    </li>
+                    @if (User.IsInRole("Recruiter") || User.IsInRole("Admin"))
+                    {
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link" asp-controller="Attributes" asp-action="Index">@L["Attribute library"]</a>
                         </li>
+                    }
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                            <a class="nav-link" asp-controller="Profile" asp-action="Index">@L["My profile"]</a>
                         </li>
-                    </ul>
+                    }
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Admin" asp-action="Users">@L["Users"]</a>
+                        </li>
+                    }
+                </ul>
+
+                @* Full-text search, present in the header of every page as required. *@
+                <form class="d-flex flex-grow-1 me-3" asp-controller="Search" asp-action="Index" method="get" role="search">
+                    <input class="form-control" type="search" name="q" value="@Context.Request.Query["q"]"
+                           placeholder="@L["Search positions, candidates, projects"]" aria-label="@L["Search"]" />
+                    <button class="btn btn-outline-secondary ms-1" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </form>
+
+                <div class="d-flex align-items-center gap-2">
+                    @* Theme and language both post back so the choice can be stored
+                       against the account, not just in this browser. *@
+                    <form asp-controller="Preferences" asp-action="SetTheme" method="post" class="m-0">
+                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                        <input type="hidden" name="theme" value="@(theme == "dark" ? "light" : "dark")" />
+                        <button class="btn btn-outline-secondary btn-sm" type="submit"
+                                title="@L["Switch theme"]">
+                            <i class="bi @(theme == "dark" ? "bi-sun" : "bi-moon")"></i>
+                        </button>
+                    </form>
+
+                    <form asp-controller="Preferences" asp-action="SetLanguage" method="post" class="m-0">
+                        <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                        <select name="culture" class="form-select form-select-sm" onchange="this.form.submit()"
+                                aria-label="@L["Language"]">
+                            <option value="en" selected="@(culture == "en")">EN</option>
+                            <option value="ru" selected="@(culture == "ru")">RU</option>
+                        </select>
+                    </form>
+
                     <partial name="_LoginPartial" />
                 </div>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
-
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - CvManager - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
-    </footer>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
-    @await RenderSectionAsync("Scripts", required: false)
+    </nav>
+</header>
+
+<div class="container-fluid py-3">
+    @if (TempData["Status"] is string status)
+    {
+        <div class="alert alert-info alert-dismissible" role="alert">
+            @status
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@L["Close"]"></button>
+        </div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            @error
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="@L["Close"]"></button>
+        </div>
+    }
+
+    <main role="main">
+        @RenderBody()
+    </main>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/table-toolbar.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

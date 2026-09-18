@@ -1,0 +1,42 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@model List<CvManager.Models.ViewModels.PositionListItem>
+@inject IStringLocalizer<SharedResource> L
+
+@* Read-only positions table, reused by the main page. The title is the link -
+   there are no action buttons in the rows. *@
+<div class="table-responsive">
+    <table class="table table-sm table-hover align-middle">
+        <thead>
+        <tr>
+            <th>@L["Title"]</th>
+            <th>@L["Company"]</th>
+            <th>@L["Level"]</th>
+            <th class="text-end">@L["CVs"]</th>
+            <th>@L["Updated"]</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var position in Model)
+        {
+            <tr>
+                <td>
+                    <a asp-controller="Positions" asp-action="Details" asp-route-id="@position.Id">@position.Title</a>
+                    @if (!position.IsPublic)
+                    {
+                        <i class="bi bi-lock-fill text-body-secondary ms-1" title="@L["Restricted access"]"></i>
+                    }
+                </td>
+                <td class="text-body-secondary">@position.Company</td>
+                <td class="text-body-secondary">@(position.Level?.ToString() ?? "")</td>
+                <td class="text-end">@position.CvCount</td>
+                <td class="text-body-secondary small">@position.UpdatedAt.ToString("d MMM yyyy")</td>
+            </tr>
+        }
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="5" class="text-body-secondary">@L["Nothing here yet."]</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

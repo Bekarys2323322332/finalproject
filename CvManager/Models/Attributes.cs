@@ -45,6 +45,11 @@ public class LibraryAttribute : IVersioned
     // Only used to keep the built-in "Me" fields in a sensible order.
     public int SortOrder { get; set; }
 
+    // Stamped whenever this attribute is put on a position or added to a
+    // profile. The library gets large, so the attribute picker offers the
+    // recently used ones first and this is what it sorts by.
+    public DateTime? LastUsedAt { get; set; }
+
     // Optimistic locking. Sent to the client, sent back on save, and the UPDATE
     // only matches if it is unchanged. See ApplicationDbContext for the wiring.
     public int Version { get; set; }

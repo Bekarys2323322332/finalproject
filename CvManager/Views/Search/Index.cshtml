@@ -1,0 +1,73 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@using CvManager.Models
+@model CvManager.Models.ViewModels.SearchViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = L["Search"].Value;
+}
+
+<h1 class="h4 mb-3">@L["Search"] <span class="text-body-secondary fs-6">@Model.Query</span></h1>
+
+@if (string.IsNullOrWhiteSpace(Model.Query))
+{
+    <p class="text-body-secondary">@L["Type something in the search box at the top."]</p>
+}
+else
+{
+    <h2 class="h6">@L["Positions"] <span class="badge text-bg-secondary">@Model.Positions.Count</span></h2>
+    <partial name="_PositionTable" model="Model.Positions" />
+
+    @if (Model.CanSeeCvs)
+    {
+        <h2 class="h6 mt-4">@L["CVs"] <span class="badge text-bg-secondary">@Model.Cvs.Count</span></h2>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                <tr>
+                    <th>@L["Candidate"]</th>
+                    <th>@L["Position"]</th>
+                    <th>@L["State"]</th>
+                    <th class="text-end">@L["Likes"]</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var cv in Model.Cvs)
+                {
+                    <tr>
+                        <td><a asp-controller="Cvs" asp-action="Details" asp-route-id="@cv.Id">@cv.CandidateName</a></td>
+                        <td class="text-body-secondary">@cv.PositionTitle</td>
+                        <td>
+                            <span class="badge @(cv.State == CvState.Published ? "text-bg-success" : "text-bg-secondary")">
+                                @cv.State
+                            </span>
+                        </td>
+                        <td class="text-end">@cv.Likes</td>
+                    </tr>
+                }
+                @if (Model.Cvs.Count == 0)
+                {
+                    <tr><td colspan="4" class="text-body-secondary">@L["Nothing found."]</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (Model.MyProjects.Count > 0)
+    {
+        <h2 class="h6 mt-4">@L["My projects"]</h2>
+        <ul>
+            @foreach (var project in Model.MyProjects)
+            {
+                <li>
+                    @project.Name
+                    @foreach (var tag in project.ProjectTags)
+                    {
+                        <span class="badge text-bg-secondary ms-1">@tag.Tag?.Name</span>
+                    }
+                </li>
+            }
+        </ul>
+    }
+}
