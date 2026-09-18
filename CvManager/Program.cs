@@ -3,6 +3,7 @@ using CvManager.Data;
 using CvManager.Filters;
 using CvManager.Models;
 using CvManager.Services;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -65,6 +66,18 @@ if (!string.IsNullOrWhiteSpace(gitHubId) && !string.IsNullOrWhiteSpace(gitHubSec
     });
 }
 
+// Cloud Run terminates HTTPS at its front end and forwards plain HTTP to the
+// container. Without this the app thinks every request is http, builds an
+// http:// OAuth callback URL and Google refuses it with redirect_uri_mismatch.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // The proxy's address is not known ahead of time, so the default
+    // "only trust localhost" restriction has to be lifted.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 
 // The auto-save posts JSON, so it cannot put the antiforgery token in a form
@@ -107,6 +120,9 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
     await DbSeeder.SeedAsync(scope.ServiceProvider, app.Configuration);
 }
+
+// First in the pipeline, so every later component sees the original scheme.
+app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
 {
