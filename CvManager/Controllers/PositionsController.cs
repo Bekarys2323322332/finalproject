@@ -21,15 +21,18 @@ public class PositionsController : Controller
     private readonly PositionAccessService _access;
     private readonly TagService _tags;
     private readonly MarkdownRenderer _markdown;
+    private readonly CvCsvExporter _csv;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public PositionsController(ApplicationDbContext db, PositionAccessService access,
-        TagService tags, MarkdownRenderer markdown, UserManager<ApplicationUser> userManager)
+        TagService tags, MarkdownRenderer markdown, CvCsvExporter csv,
+        UserManager<ApplicationUser> userManager)
     {
         _db = db;
         _access = access;
         _tags = tags;
         _markdown = markdown;
+        _csv = csv;
         _userManager = userManager;
     }
 
@@ -197,6 +200,24 @@ public class PositionsController : Controller
                     .Select(v => v.ValueString)
                     .FirstOrDefault()
             });
+    }
+
+    // Optional extra: every CV for this position as one spreadsheet, with a
+    // column per attribute the position asks for.
+    [Authorize(Roles = Roles.RecruiterOrAdmin)]
+    public async Task<IActionResult> ExportCsv(int id)
+    {
+        var position = await _db.Positions.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+        if (position is null)
+        {
+            return NotFound();
+        }
+
+        // Only an admin sees drafts, exactly as on the page itself.
+        var bytes = await _csv.ExportAsync(id, includeDrafts: User.IsInRole(Roles.Admin));
+        var fileName = $"cvs-{position.Title}.csv".Replace(' ', '-').Replace('/', '-');
+
+        return File(bytes, "text/csv", fileName);
     }
 
     [Authorize(Roles = Roles.RecruiterOrAdmin)]

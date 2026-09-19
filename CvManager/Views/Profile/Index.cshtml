@@ -66,6 +66,19 @@
                     <partial name="_ValueField" model="row" />
                 }
             </div>
+
+            @* Achievements, drawn server-side as SVG and downloadable. *@
+            <div class="col-12 col-md-6">
+                <h2 class="h6 text-uppercase text-body-secondary">@L["Achievements"]</h2>
+                <img src="@Url.Action("Badges", new { userId = ownerId })" alt="@L["Achievements"]"
+                     class="img-fluid mb-2" />
+                <div>
+                    <a class="btn btn-sm btn-outline-secondary"
+                       asp-action="Badges" asp-route-userId="@ownerId" asp-route-download="true">
+                        <i class="bi bi-download"></i> @L["Download SVG"]
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 

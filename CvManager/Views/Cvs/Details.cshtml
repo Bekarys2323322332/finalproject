@@ -38,6 +38,11 @@
             <i class="bi bi-heart-fill text-danger"></i> @Model.LikeCount
         </span>
 
+        @* Printable copy with a QR code back to this page. *@
+        <a class="btn btn-sm btn-outline-secondary" asp-action="Pdf" asp-route-id="@Model.Cv.Id">
+            <i class="bi bi-file-earmark-pdf"></i> @L["PDF"]
+        </a>
+
         @if (canLike)
         {
             <form asp-action="ToggleLike" asp-route-id="@Model.Cv.Id" method="post">

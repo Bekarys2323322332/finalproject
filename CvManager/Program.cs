@@ -105,10 +105,17 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
     options.SupportedUICultures = supportedCultures;
 });
 
+// QuestPDF needs its licence mode set once before any document is produced.
+// Community covers this project.
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 builder.Services.AddScoped<PositionAccessService>();
 builder.Services.AddScoped<CvBuilder>();
 builder.Services.AddScoped<TagService>();
 builder.Services.AddSingleton<MarkdownRenderer>();
+builder.Services.AddScoped<CvPdfService>();
+builder.Services.AddScoped<BadgeService>();
+builder.Services.AddScoped<CvCsvExporter>();
 
 var app = builder.Build();
 

@@ -213,4 +213,8 @@
   <data name="Delete users?"><value>Удалить пользователей?</value></data>
   <data name="My projects"><value>Мои проекты</value></data>
   <data name="Type something in the search box at the top."><value>Введите запрос в поле поиска сверху.</value></data>
+  <data name="PDF"><value>PDF</value></data>
+  <data name="Export CSV"><value>Экспорт в CSV</value></data>
+  <data name="Achievements"><value>Достижения</value></data>
+  <data name="Download SVG"><value>Скачать SVG</value></data>
 </root>

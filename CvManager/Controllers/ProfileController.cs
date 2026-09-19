@@ -20,15 +20,17 @@ public class ProfileController : Controller
     private readonly PositionAccessService _access;
     private readonly TagService _tags;
     private readonly MarkdownRenderer _markdown;
+    private readonly BadgeService _badges;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public ProfileController(ApplicationDbContext db, PositionAccessService access, TagService tags,
-        MarkdownRenderer markdown, UserManager<ApplicationUser> userManager)
+        MarkdownRenderer markdown, BadgeService badges, UserManager<ApplicationUser> userManager)
     {
         _db = db;
         _access = access;
         _tags = tags;
         _markdown = markdown;
+        _badges = badges;
         _userManager = userManager;
     }
 
@@ -137,6 +139,38 @@ public class ProfileController : Controller
                 Hidden = !accessiblePositions.Contains(c.PositionId)
             }).ToList()
         });
+    }
+
+    // Optional extra: the achievements panel as a downloadable SVG. Served as a
+    // file so it can be dropped into a README or a portfolio page.
+    public async Task<IActionResult> Badges(string? userId, bool download = false)
+    {
+        var target = string.IsNullOrWhiteSpace(userId) ? _userManager.GetUserId(User)! : userId!;
+
+        // Only the owner and admins may ask for somebody's panel.
+        if (target != _userManager.GetUserId(User) && !User.IsInRole(Roles.Admin))
+        {
+            return Forbid();
+        }
+
+        var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == target);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var name = await _db.AttributeValues
+            .Where(v => v.UserId == target && v.AttributeId == ApplicationDbContext.FirstNameAttributeId)
+            .Select(v => v.ValueString)
+            .FirstOrDefaultAsync();
+
+        var badges = await _badges.ForUserAsync(target);
+        var svg = BadgeService.RenderSvg(name ?? user.Email ?? "Candidate", badges);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(svg);
+
+        return download
+            ? File(bytes, "image/svg+xml", "cv-manager-badges.svg")
+            : File(bytes, "image/svg+xml");
     }
 
     // "Candidates may add or remove attributes from the library." Adding creates

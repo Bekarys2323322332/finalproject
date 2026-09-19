@@ -134,6 +134,13 @@
     @if (Model.CanSeeCvs)
     {
         <div class="tab-pane fade" id="tab-cvs">
+            <div class="mb-2">
+                @* Spreadsheet of every CV here, one column per attribute. *@
+                <a class="btn btn-sm btn-outline-secondary" asp-action="ExportCsv" asp-route-id="@Model.Position.Id">
+                    <i class="bi bi-filetype-csv"></i> @L["Export CSV"]
+                </a>
+            </div>
+
             @* Read-only list for recruiters. The candidate's name is the link;
                there are no buttons in the rows. *@
             <div class="table-responsive">

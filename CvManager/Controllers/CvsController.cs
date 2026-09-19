@@ -19,15 +19,17 @@ public class CvsController : Controller
     private readonly CvBuilder _builder;
     private readonly PositionAccessService _access;
     private readonly MarkdownRenderer _markdown;
+    private readonly CvPdfService _pdf;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public CvsController(ApplicationDbContext db, CvBuilder builder, PositionAccessService access,
-        MarkdownRenderer markdown, UserManager<ApplicationUser> userManager)
+        MarkdownRenderer markdown, CvPdfService pdf, UserManager<ApplicationUser> userManager)
     {
         _db = db;
         _builder = builder;
         _access = access;
         _markdown = markdown;
+        _pdf = pdf;
         _userManager = userManager;
     }
 
@@ -110,6 +112,48 @@ public class CvsController : Controller
 
         ViewData["Markdown"] = _markdown;
         return View(model);
+    }
+
+    // Optional extra: the CV as a printable PDF carrying a QR code back to this
+    // page. Same permission rules as viewing it.
+    public async Task<IActionResult> Pdf(int id)
+    {
+        var cv = await _db.Cvs.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+        if (cv is null)
+        {
+            return NotFound();
+        }
+
+        var userId = _userManager.GetUserId(User)!;
+        var isAdmin = User.IsInRole(Roles.Admin);
+        var isRecruiter = User.IsInRole(Roles.Recruiter);
+        var isOwner = cv.UserId == userId;
+
+        if (!isOwner && !isAdmin && !isRecruiter)
+        {
+            return Forbid();
+        }
+
+        if (isRecruiter && !isAdmin && cv.State != CvState.Published)
+        {
+            return NotFound();
+        }
+
+        var model = await _builder.BuildAsync(id, userId, canEdit: false);
+        if (model is null)
+        {
+            return NotFound();
+        }
+
+        // Absolute URL, because the QR code is scanned from paper.
+        var url = Url.Action(nameof(Details), "Cvs", new { id }, Request.Scheme)!;
+        var bytes = _pdf.Render(model, url);
+
+        var fileName = $"cv-{model.FullName}-{model.Position.Title}.pdf"
+            .Replace(' ', '-')
+            .Replace('/', '-');
+
+        return File(bytes, "application/pdf", fileName);
     }
 
     // Publishing is what makes a CV visible to recruiters, and it is only
