@@ -5,6 +5,178 @@ Read `ARCHITECTURE.md` first for the ideas; this is the map.
 
 ---
 
+## Project structure
+
+```
+cv-manager/
+├── Dockerfile                        two-stage build: SDK publishes, runtime runs
+├── ARCHITECTURE.md                   the ideas behind the design
+├── FILE-GUIDE.md                     this file
+└── CvManager/
+    ├── Program.cs                    composition root: DI, auth, pipeline, startup migration
+    ├── SharedResource.cs             marker type for the shared localizer
+    ├── appsettings.json              config shape, empty values
+    ├── appsettings.Development.json  local secrets — git-ignored
+    │
+    ├── Models/                       the domain: what the data IS
+    │   ├── Enums.cs                  AttributeType, RuleOperator, CvState, PositionLevel
+    │   ├── IVersioned.cs             marker for anything optimistically locked
+    │   ├── ApplicationUser.cs        Identity user + language, theme, IsBlocked
+    │   ├── Roles.cs                  role-name constants
+    │   ├── Attributes.cs             category, library attribute, option, VALUE
+    │   ├── Projects.cs               project, tag, project-tag join
+    │   ├── Positions.cs              position, its attributes, tags, access rules
+    │   ├── Cvs.cs                    cv, like, discussion post
+    │   └── ViewModels/               projections for the views — never entities
+    │
+    ├── Data/                         persistence
+    │   ├── ApplicationDbContext.cs   indexes, cascades, locking, search, seed
+    │   └── DbSeeder.cs               roles + first admin at startup
+    │
+    ├── Services/                     the logic worth naming
+    │   ├── PositionAccessService.cs  who may apply for what        (feature #2)
+    │   ├── CvBuilder.cs              assembles a CV on the fly     (feature #3)
+    │   ├── TagService.cs             normalise + get-or-create tags
+    │   ├── MarkdownRenderer.cs       one safe Markdig pipeline
+    │   ├── CvPdfService.cs           PDF + QR                 (optional extra)
+    │   ├── CvCsvExporter.cs          CSV, dynamic columns     (optional extra)
+    │   └── BadgeService.cs           achievements as SVG      (optional extra)
+    │
+    ├── Filters/
+    │   └── ActiveUserFilter.cs       blocked-user check on every request
+    │
+    ├── Controllers/                  thin: validate, call a service, pick a view
+    │   ├── HomeController.cs         main page: latest, popular, tags, stats
+    │   ├── AttributesController.cs   the library                   (feature #1)
+    │   ├── PositionsController.cs    positions + discussion        (feature #2)
+    │   ├── CvsController.cs          create, view, publish, like   (feature #3)
+    │   ├── ProfileController.cs      Me / Info / Projects / CVs
+    │   ├── ValuesController.cs       THE value writer + locking
+    │   ├── AdminController.cs        block, delete, roles
+    │   ├── SearchController.cs       full-text search
+    │   ├── PreferencesController.cs  language + theme
+    │   └── TagsController.cs         tag autocomplete
+    │
+    ├── Views/                        Razor, Bootstrap 5, no per-row buttons
+    │   ├── Shared/_Layout.cshtml     navbar, header search, theme, language
+    │   ├── Shared/_ValueField.cshtml one attribute, edit or read-only
+    │   └── …                         one folder per controller
+    │
+    ├── Resources/
+    │   └── SharedResource.ru.resx    Russian UI strings
+    │
+    └── wwwroot/
+        ├── js/table-toolbar.js       selection → toolbar state
+        ├── js/value-editor.js        the 5-second auto-save
+        └── css/site.css              only what Bootstrap lacks
+```
+
+**The layering rule:** a controller validates input and picks a view; anything
+worth explaining lives in a service; anything that must be *true* regardless of
+what the code does lives in the database — indexes, cascade rules, concurrency
+tokens.
+
+---
+
+## Responsibility map
+
+Which file answers which requirement from the brief.
+
+| Requirement | Lives in |
+|---|---|
+| Reusable attribute library | `Controllers/AttributesController.cs`, `Models/Attributes.cs` |
+| Globally unique attribute name | unique index in `ApplicationDbContext`; `23505` caught in `AttributesController.Save` |
+| Eight attribute types | `Models/Enums.cs`, typed columns on `AttributeValue`, `Views/Shared/_ValueField.cshtml` |
+| Picker: prefix, category, recently used | `AttributesController.Suggest` + `LastUsedAt` |
+| Positions as CV templates | `Controllers/PositionsController.cs`, `Models/Positions.cs` |
+| Access rules | `Services/PositionAccessService.cs` |
+| Duplicate a position | `PositionsController.Duplicate` |
+| Generated CV | `Services/CvBuilder.cs` |
+| One CV per candidate per position | unique index `(PositionId, UserId)` |
+| Empty values highlighted red | `_ValueField.cshtml`, `site.css`, `HasValue` |
+| Publish only when complete | `CvViewModel.IsComplete`, re-checked in `CvsController.Publish` |
+| Lost access hides the CV | `CvsController.Details`, `ProfileCvItem.Hidden` |
+| Editing in a CV updates the profile | `Controllers/ValuesController.cs` — the single writer |
+| Optimistic locking | `IVersioned`, `ApplicationDbContext`, `ValuesController.Save` |
+| Auto-save every 5–10s | `wwwroot/js/value-editor.js` |
+| Profile: Me / Info / Projects / CVs | `Controllers/ProfileController.cs`, `Views/Profile/Index.cshtml` |
+| Projects with markdown + tags | `Models/Projects.cs`, `Views/Profile/Project.cshtml`, Tagify |
+| Discussions, 2–5s updates | `PositionsController.Messages` / `PostMessage`, polling in `Positions/Details.cshtml` |
+| Likes, one per recruiter | `CvsController.ToggleLike` + unique index |
+| Roles and permissions | `Models/Roles.cs`, `[Authorize]`, `Filters/ActiveUserFilter.cs` |
+| Blocked user kicked out | `Filters/ActiveUserFilter.cs` |
+| Admin user management | `Controllers/AdminController.cs` |
+| Admin can drop own Admin role | `AdminController.SetRole` + `RefreshSignInAsync` |
+| Social login, two providers | `Program.cs` (Google + GitHub) |
+| Main page: latest, popular, tags, stats | `Controllers/HomeController.cs` |
+| Full-text search in the header | `Controllers/SearchController.cs`, `tsvector`/GIN, `_Layout.cshtml` |
+| Two languages | `Resources/SharedResource.ru.resx`, `PreferencesController.SetLanguage` |
+| Two themes | `PreferencesController.SetTheme`, `data-bs-theme` in `_Layout.cshtml` |
+| Images in cloud storage | `Views/Shared/_CloudinaryUploader.cshtml` |
+| Tables with toolbars, no row buttons | `wwwroot/js/table-toolbar.js` + every index view |
+| ORM | EF Core throughout |
+| No `SELECT *` | view-model projections in every list action |
+| No queries in loops | `CvBuilder`, `TagService`, `AdminController.Users` |
+| Cascade deletes | delete behaviours in `ApplicationDbContext` |
+
+---
+
+## The eight files that matter most
+
+If you only revise a handful, revise these.
+
+### 1. `Data/ApplicationDbContext.cs`
+Everything that must hold true no matter what the code does. Unique indexes are
+the real constraints; cascade rules let Postgres delete dependents in one
+statement instead of a hand-written loop; the `IVersioned` loop turns `Version`
+into a concurrency token; the `SaveChanges` override increments it so no
+controller can forget. Also the `tsvector`/GIN columns and the seeded categories
+and built-in attributes.
+
+### 2. `Services/PositionAccessService.cs`
+`AccessibleTo(userId)` = public **or** every rule satisfied, written as one LINQ
+expression that becomes one SQL query with `EXISTS` sub-queries. Returns
+`IQueryable` so callers add their own paging and projection. Only answered values
+count, so an unfilled attribute satisfies no rule — including the negative ones.
+
+### 3. `Services/CvBuilder.cs`
+Builds the CV: the position's attributes in order, the candidate's values for
+exactly those (one query, matched through a dictionary), the built-in header
+attributes, and tag-matching projects capped at `MaxProjects`. Nothing is cached
+or copied, which is why a CV reflects the profile instantly.
+
+### 4. `Controllers/ValuesController.cs`
+The single writer of attribute values, and therefore the reason a value is one
+master copy. Batch save, each item carrying the version the page was rendered
+with; on conflict the losers are detached, the rest still saves, and the winning
+values come back marked `conflict: true`.
+
+### 5. `wwwroot/js/value-editor.js`
+Tracks dirty fields locally, flushes every five seconds, clears the queue before
+sending so typing during the request is not lost, restores the batch if the
+request fails, flushes on `beforeunload`, and on conflict writes the winning
+value into the field rather than overwriting somebody else's edit.
+
+### 6. `Filters/ActiveUserFilter.cs`
+Runs before every action: reloads the user, signs out anyone blocked or deleted
+since sign-in — the cookie would otherwise stay valid — and gives new accounts
+the `Candidate` role with `RefreshSignInAsync`, because roles live in the cookie.
+Skips `[AllowAnonymous]`, or a blocked user could not reach the login page.
+
+### 7. `Models/Attributes.cs`
+Typed value columns, so `GPA > 3.5` is a genuine numeric comparison on an
+indexable column; `HasValue`, because `0`, `false` and `""` are real answers;
+dropdown answers storing the option **id**, so renaming a choice does not
+invalidate them; `IsSystem` for the four built-in profile fields.
+
+### 8. `Program.cs`
+The composition root, and home of the one deployment subtlety:
+`UseForwardedHeaders()` must run first, because Cloud Run ends TLS at its proxy
+and hands the container plain HTTP — without it the OAuth callback is built as
+`http://` and Google rejects it with `redirect_uri_mismatch`.
+
+---
+
 ## Startup and configuration
 
 ### `Program.cs`
