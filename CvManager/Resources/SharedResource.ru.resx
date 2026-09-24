@@ -217,4 +217,9 @@
   <data name="Export CSV"><value>Экспорт в CSV</value></data>
   <data name="Achievements"><value>Достижения</value></data>
   <data name="Download SVG"><value>Скачать SVG</value></data>
+  <data name="required"><value>обязательно</value></data>
+  <data name="Create"><value>Создать</value></data>
+  <data name="— choose —"><value>— выберите —</value></data>
+  <data name="Posting…"><value>Отправка…</value></data>
+  <data name="Nothing is saved until these fields are filled in, so a half-finished position never appears in the list."><value>Ничего не сохраняется, пока эти поля не заполнены, поэтому незавершённая вакансия не появится в списке.</value></data>
 </root>

@@ -17,6 +17,9 @@ public class PositionsController : Controller
 {
     private const int PageSize = 20;
 
+    // How long a user must wait between two posts in the same discussion.
+    private static readonly TimeSpan PostCooldown = TimeSpan.FromMinutes(1);
+
     private readonly ApplicationDbContext _db;
     private readonly PositionAccessService _access;
     private readonly TagService _tags;
@@ -220,17 +223,41 @@ public class PositionsController : Controller
         return File(bytes, "text/csv", fileName);
     }
 
+    // Creating a position is two steps on purpose. The editor needs an id to
+    // hang attributes and rules off, but inserting a blank row first meant a
+    // mis-click left an empty position in the list forever. Now the row is only
+    // written once the required fields are valid.
+    [Authorize(Roles = Roles.RecruiterOrAdmin)]
+    [HttpGet]
+    public IActionResult Create()
+    {
+        return View(new PositionBasicsViewModel());
+    }
+
     [Authorize(Roles = Roles.RecruiterOrAdmin)]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create()
+    public async Task<IActionResult> Create(PositionBasicsViewModel model)
     {
-        // A blank position is created immediately and then edited, so the
-        // attribute and rule editors always have an id to attach things to.
-        var position = new Position { Title = "New position" };
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var position = new Position
+        {
+            Title = model.Title.Trim(),
+            ShortDescription = model.ShortDescription,
+            Company = model.Company,
+            Level = model.Level,
+            IsPublic = model.IsPublic,
+            MaxProjects = model.MaxProjects
+        };
+
         _db.Positions.Add(position);
         await _db.SaveChangesAsync();
 
+        TempData["Status"] = "Position created. Add the attributes it should ask for.";
         return RedirectToAction(nameof(Edit), new { id = position.Id });
     }
 
@@ -250,16 +277,28 @@ public class PositionsController : Controller
     [HttpGet]
     public async Task<IActionResult> Edit(int id)
     {
+        var model = await BuildEditViewModelAsync(id);
+        return model is null ? NotFound() : View(model);
+    }
+
+    // Shared by the editor and by SaveBasics when validation fails, so a failed
+    // save can redisplay the page with its error messages instead of redirecting
+    // and losing them.
+    private async Task<PositionEditViewModel?> BuildEditViewModelAsync(
+        int id, PositionBasicsViewModel? basics = null)
+    {
         var position = await _db.Positions.FirstOrDefaultAsync(p => p.Id == id);
         if (position is null)
         {
-            return NotFound();
+            return null;
         }
 
-        return View(new PositionEditViewModel
+        return new PositionEditViewModel
         {
             Position = position,
-            Basics = new PositionBasicsViewModel
+            // On a failed save the user's own input is shown back to them, not
+            // the values still sitting in the database.
+            Basics = basics ?? new PositionBasicsViewModel
             {
                 Id = position.Id,
                 Title = position.Title,
@@ -284,7 +323,7 @@ public class PositionsController : Controller
                 .Select(pt => pt.Tag!.Name)
                 .ToListAsync(),
             Categories = await _db.AttributeCategories.OrderBy(c => c.Name).ToListAsync()
-        });
+        };
     }
 
     [Authorize(Roles = Roles.RecruiterOrAdmin)]
@@ -304,8 +343,10 @@ public class PositionsController : Controller
 
         if (!ModelState.IsValid)
         {
-            TempData["Error"] = "Please check the position details.";
-            return RedirectToAction(nameof(Edit), new { id = model.Id });
+            // Redirecting here would throw the validation messages away, so the
+            // editor is rebuilt around the values the user just submitted.
+            var invalid = await BuildEditViewModelAsync(model.Id, model);
+            return invalid is null ? NotFound() : View("Edit", invalid);
         }
 
         // Optimistic locking: the version the form was rendered with becomes the
@@ -612,14 +653,37 @@ public class PositionsController : Controller
     [Authorize]
     [HttpPost]
     [ValidateAntiForgeryToken]
+    // One message per minute per person per discussion.
+    //
+    // The button is disabled in the browser while a post is in flight and for a
+    // minute afterwards, but that only stops honest double-clicks: a second tab,
+    // a refresh or a crafted request would still get through. The rule is
+    // therefore enforced here, where it cannot be skipped.
     public async Task<IActionResult> PostMessage(int id, string body)
     {
         if (string.IsNullOrWhiteSpace(body))
         {
-            return BadRequest();
+            return BadRequest("Write something first.");
         }
 
         var userId = _userManager.GetUserId(User)!;
+        var cutoff = DateTime.UtcNow - PostCooldown;
+
+        // Rides the (PositionId, Id) index; only the timestamp is fetched.
+        var lastPostedAt = await _db.DiscussionPosts
+            .Where(p => p.PositionId == id && p.AuthorId == userId)
+            .OrderByDescending(p => p.Id)
+            .Select(p => (DateTime?)p.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (lastPostedAt is not null && lastPostedAt > cutoff)
+        {
+            var wait = (int)Math.Ceiling((lastPostedAt.Value - cutoff).TotalSeconds);
+
+            // 429 rather than 400: the request was fine, it just came too soon.
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                $"Please wait {wait} more second(s) before posting again.");
+        }
 
         _db.DiscussionPosts.Add(new DiscussionPost
         {

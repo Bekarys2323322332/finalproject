@@ -257,9 +257,46 @@
                         .catch(function () { /* a failed poll just retries later */ });
                 }
 
+                const submitButton = form.querySelector('button[type=submit]');
+                const submitLabel = submitButton.textContent;
+                let sending = false;
+                let cooldownTimer = null;
+
+                // Blocks the button for the rest of the cooldown and counts down
+                // on its label, so it is obvious why it cannot be pressed.
+                function startCooldown(seconds) {
+                    clearInterval(cooldownTimer);
+                    let left = seconds;
+
+                    function tick() {
+                        if (left <= 0) {
+                            clearInterval(cooldownTimer);
+                            submitButton.disabled = false;
+                            submitButton.textContent = submitLabel;
+                            status.textContent = '';
+                            return;
+                        }
+                        submitButton.disabled = true;
+                        submitButton.textContent = submitLabel + ' (' + left + 's)';
+                        left--;
+                    }
+
+                    tick();
+                    cooldownTimer = setInterval(tick, 1000);
+                }
+
                 form.addEventListener('submit', function (event) {
                     event.preventDefault();
+
+                    // Two guards against the same message being posted twice: the
+                    // button is disabled while the request is in flight, and this
+                    // flag catches an Enter key arriving in the same moment.
+                    if (sending || submitButton.disabled) return;
                     if (!body.value.trim()) return;
+
+                    sending = true;
+                    submitButton.disabled = true;
+                    status.textContent = '@L["Posting…"]';
 
                     const data = new FormData();
                     data.append('id', positionId);
@@ -270,11 +307,29 @@
                         .then(function (response) {
                             if (response.ok) {
                                 body.value = '';
-                                status.textContent = '';
                                 poll();
-                            } else {
-                                status.textContent = '@L["Could not post, try again."]';
+                                // One message a minute, matching the server rule.
+                                startCooldown(60);
+                                return;
                             }
+
+                            return response.text().then(function (message) {
+                                status.textContent = message || '@L["Could not post, try again."]';
+                                if (response.status === 429) {
+                                    // The server knows exactly how long is left.
+                                    const match = message.match(/(\d+)/);
+                                    startCooldown(match ? parseInt(match[1], 10) : 60);
+                                } else {
+                                    submitButton.disabled = false;
+                                }
+                            });
+                        })
+                        .catch(function () {
+                            status.textContent = '@L["Could not post, try again."]';
+                            submitButton.disabled = false;
+                        })
+                        .then(function () {
+                            sending = false;
                         });
                 });
 

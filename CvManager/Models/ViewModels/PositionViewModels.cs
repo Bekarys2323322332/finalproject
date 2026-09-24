@@ -47,18 +47,27 @@ public class PositionBasicsViewModel
 {
     public int Id { get; set; }
 
-    [Required, StringLength(300)]
+    // Everything a position needs before it is worth listing. A position with no
+    // title or company used to be creatable by accident, because the editor
+    // inserted a blank row first and validated later; now nothing is inserted
+    // until these pass.
+    [Required(ErrorMessage = "Title is required.")]
+    [StringLength(300)]
     [Display(Name = "Title")]
     public string Title { get; set; } = "";
 
-    [StringLength(2000)]
+    [Required(ErrorMessage = "Short description is required.")]
+    [StringLength(2000, MinimumLength = 10,
+        ErrorMessage = "Give at least a sentence of description.")]
     [Display(Name = "Short description")]
     public string? ShortDescription { get; set; }
 
+    [Required(ErrorMessage = "Company is required.")]
     [StringLength(200)]
     [Display(Name = "Company")]
     public string? Company { get; set; }
 
+    [Required(ErrorMessage = "Pick a level.")]
     [Display(Name = "Level")]
     public PositionLevel? Level { get; set; }
 

@@ -28,9 +28,9 @@
         @* One toolbar for the table. Duplicate needs exactly one row, delete
            needs at least one. *@
         <div class="d-flex flex-wrap gap-2 mb-2">
-            <button class="btn btn-sm btn-primary" type="submit" formaction="@Url.Action("Create")">
+            <a class="btn btn-sm btn-primary" asp-action="Create">
                 <i class="bi bi-plus-lg"></i> @L["New position"]
-            </button>
+            </a>
             <button class="btn btn-sm btn-outline-secondary" type="submit"
                     formaction="@Url.Action("EditSelected")" data-requires="one" disabled>
                 <i class="bi bi-pencil"></i> @L["Edit"]
