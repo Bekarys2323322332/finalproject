@@ -259,6 +259,11 @@
 
                 const submitButton = form.querySelector('button[type=submit]');
                 const submitLabel = submitButton.textContent;
+
+                // Zero for admins, who are exempt from the cooldown server-side
+                // too - the countdown would otherwise block a button the server
+                // would have accepted.
+                const cooldownSeconds = @(User.IsInRole("Admin") ? 0 : 60);
                 let sending = false;
                 let cooldownTimer = null;
 
@@ -309,7 +314,12 @@
                                 body.value = '';
                                 poll();
                                 // One message a minute, matching the server rule.
-                                startCooldown(60);
+                                if (cooldownSeconds > 0) {
+                                    startCooldown(cooldownSeconds);
+                                } else {
+                                    submitButton.disabled = false;
+                                    status.textContent = '';
+                                }
                                 return;
                             }
 

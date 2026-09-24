@@ -667,22 +667,29 @@ public class PositionsController : Controller
         }
 
         var userId = _userManager.GetUserId(User)!;
-        var cutoff = DateTime.UtcNow - PostCooldown;
 
-        // Rides the (PositionId, Id) index; only the timestamp is fetched.
-        var lastPostedAt = await _db.DiscussionPosts
-            .Where(p => p.PositionId == id && p.AuthorId == userId)
-            .OrderByDescending(p => p.Id)
-            .Select(p => (DateTime?)p.CreatedAt)
-            .FirstOrDefaultAsync();
-
-        if (lastPostedAt is not null && lastPostedAt > cutoff)
+        // Admins are exempt. The cooldown exists to stop accidental double posts
+        // and flooding by ordinary users; an admin moderating a discussion may
+        // legitimately need to post several times in a row.
+        if (!User.IsInRole(Roles.Admin))
         {
-            var wait = (int)Math.Ceiling((lastPostedAt.Value - cutoff).TotalSeconds);
+            var cutoff = DateTime.UtcNow - PostCooldown;
 
-            // 429 rather than 400: the request was fine, it just came too soon.
-            return StatusCode(StatusCodes.Status429TooManyRequests,
-                $"Please wait {wait} more second(s) before posting again.");
+            // Rides the (PositionId, Id) index; only the timestamp is fetched.
+            var lastPostedAt = await _db.DiscussionPosts
+                .Where(p => p.PositionId == id && p.AuthorId == userId)
+                .OrderByDescending(p => p.Id)
+                .Select(p => (DateTime?)p.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (lastPostedAt is not null && lastPostedAt > cutoff)
+            {
+                var wait = (int)Math.Ceiling((lastPostedAt.Value - cutoff).TotalSeconds);
+
+                // 429 rather than 400: the request was fine, it just came too soon.
+                return StatusCode(StatusCodes.Status429TooManyRequests,
+                    $"Please wait {wait} more second(s) before posting again.");
+            }
         }
 
         _db.DiscussionPosts.Add(new DiscussionPost
