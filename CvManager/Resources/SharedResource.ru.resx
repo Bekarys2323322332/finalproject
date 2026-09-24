@@ -222,4 +222,6 @@
   <data name="— choose —"><value>— выберите —</value></data>
   <data name="Posting…"><value>Отправка…</value></data>
   <data name="Nothing is saved until these fields are filled in, so a half-finished position never appears in the list."><value>Ничего не сохраняется, пока эти поля не заполнены, поэтому незавершённая вакансия не появится в списке.</value></data>
+  <data name="Delete message"><value>Удалить сообщение</value></data>
+  <data name="Could not delete the message."><value>Не удалось удалить сообщение.</value></data>
 </root>

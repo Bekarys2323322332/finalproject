@@ -704,6 +704,28 @@ public class PositionsController : Controller
         return Ok();
     }
 
+    // Admin moderation. The discussion is append-only for everyone else - nobody
+    // can edit a post or slip one in between two others - but an admin has to be
+    // able to take an inappropriate message down.
+    [Authorize(Roles = Roles.Admin)]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteMessage(int id)
+    {
+        var post = await _db.DiscussionPosts.FirstOrDefaultAsync(p => p.Id == id);
+        if (post is null)
+        {
+            // Already gone - treat it as done rather than an error, since the
+            // caller wanted it removed and it is removed.
+            return Ok();
+        }
+
+        _db.DiscussionPosts.Remove(post);
+        await _db.SaveChangesAsync();
+
+        return Ok();
+    }
+
     // Marks an attribute as recently used so the picker can offer it first.
     private async Task TouchAttributeAsync(int attributeId)
     {

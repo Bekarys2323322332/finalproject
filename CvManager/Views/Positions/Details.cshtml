@@ -207,6 +207,8 @@
         <script>
             (function () {
                 const positionId = @Model.Position.Id;
+                // Admins may take a post down; everyone else only ever appends.
+                const canModerate = @(User.IsInRole("Admin") ? "true" : "false");
                 const container = document.getElementById('posts');
                 const form = document.getElementById('postForm');
                 const body = document.getElementById('body');
@@ -244,10 +246,50 @@
 
                         wrapper.appendChild(head);
                         wrapper.appendChild(content);
+
+                        if (canModerate) {
+                            // Not the forbidden "button in every table row": this
+                            // is a message thread, not a record table, and the
+                            // control only exists for admins.
+                            const remove = document.createElement('button');
+                            remove.type = 'button';
+                            remove.className = 'btn btn-sm btn-link text-danger p-0';
+                            remove.textContent = '@L["Delete message"]';
+                            remove.addEventListener('click', function () {
+                                deletePost(post.id, wrapper, remove);
+                            });
+                            wrapper.appendChild(remove);
+                        }
+
                         container.appendChild(wrapper);
 
                         if (post.id > lastId) lastId = post.id;
                     });
+                }
+
+                function deletePost(postId, wrapper, button) {
+                    button.disabled = true;
+
+                    const data = new FormData();
+                    data.append('id', postId);
+                    data.append('__RequestVerificationToken', token);
+
+                    fetch('@Url.Action("DeleteMessage")', { method: 'POST', body: data })
+                        .then(function (response) {
+                            if (response.ok) {
+                                // Removed here directly; other people watching the
+                                // thread stop seeing it when they next load the page,
+                                // because polling only ever asks for newer posts.
+                                wrapper.remove();
+                            } else {
+                                button.disabled = false;
+                                status.textContent = '@L["Could not delete the message."]';
+                            }
+                        })
+                        .catch(function () {
+                            button.disabled = false;
+                            status.textContent = '@L["Could not delete the message."]';
+                        });
                 }
 
                 function poll() {
