@@ -47,7 +47,16 @@ public class SalesforceOptions
         && !string.IsNullOrWhiteSpace(ClientId)
         && !string.IsNullOrWhiteSpace(ClientSecret);
 
-    // LoginUrl with any trailing slash removed, so building request URLs never
-    // produces a double slash.
-    public string BaseUrl => LoginUrl.TrimEnd('/');
+    // LoginUrl tidied up for building request URLs: no trailing slash, and a
+    // scheme added if whoever configured it pasted the bare My Domain host.
+    // Without the scheme the address is a relative URI and HttpClient throws
+    // instead of failing with a message anyone can act on.
+    public string BaseUrl
+    {
+        get
+        {
+            var url = LoginUrl.Trim().TrimEnd('/');
+            return url.Contains("://") ? url : "https://" + url;
+        }
+    }
 }
