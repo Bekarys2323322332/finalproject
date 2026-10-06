@@ -1,0 +1,179 @@
+@using Microsoft.Extensions.Localization
+@using CvManager
+@model CvManager.Models.ViewModels.SalesforceSyncViewModel
+@inject IStringLocalizer<SharedResource> L
+@{
+    ViewData["Title"] = L["Sync to Salesforce"].Value;
+
+    // Salesforce serves a record page at {org}/lightning/r/{Object}/{Id}/view,
+    // so the stored ids can be turned into links straight into the org. Without
+    // a known org URL the ids are still shown, just as plain text.
+    var canLink = !string.IsNullOrWhiteSpace(Model.OrgBaseUrl);
+}
+
+<h1 class="h4 mb-1">@L["Sync to Salesforce"]</h1>
+<p class="text-body-secondary small" style="max-width:720px">
+    @L["This sends your details to our CRM so you can be contacted about newsletters and additional services. An Account is created for the company and a Contact for you, linked to it."]
+</p>
+
+@if (!Model.IsConfigured)
+{
+    @* Better to say so plainly than to let somebody fill in a form that cannot
+       possibly reach Salesforce. *@
+    <div class="alert alert-warning" style="max-width:720px">
+        @L["The Salesforce integration is not configured on this server, so the form below is disabled."]
+    </div>
+}
+
+@if (Model.HasSynced)
+{
+    <div class="alert alert-info" style="max-width:720px">
+        <div class="fw-semibold mb-1">@L["You have already synced."]</div>
+        <div class="small">
+            @L["Submitting again updates these same two records rather than creating new ones."]
+        </div>
+        <dl class="row mb-0 mt-2 small">
+            <dt class="col-sm-3">@L["Account"]</dt>
+            <dd class="col-sm-9">
+                @if (canLink)
+                {
+                    <a href="@Model.OrgBaseUrl/lightning/r/Account/@Model.SalesforceAccountId/view"
+                       target="_blank" rel="noopener">@Model.SalesforceAccountId</a>
+                }
+                else
+                {
+                    @Model.SalesforceAccountId
+                }
+            </dd>
+
+            <dt class="col-sm-3">@L["Contact"]</dt>
+            <dd class="col-sm-9">
+                @if (canLink)
+                {
+                    <a href="@Model.OrgBaseUrl/lightning/r/Contact/@Model.SalesforceContactId/view"
+                       target="_blank" rel="noopener">@Model.SalesforceContactId</a>
+                }
+                else
+                {
+                    @Model.SalesforceContactId
+                }
+            </dd>
+
+            @if (Model.LastSyncedAt is not null)
+            {
+                <dt class="col-sm-3">@L["Last synced"]</dt>
+                <dd class="col-sm-9">@Model.LastSyncedAt.Value.ToString("d MMM yyyy HH:mm") UTC</dd>
+            }
+        </dl>
+    </div>
+}
+
+<form asp-action="Sync" method="post" class="row g-3" style="max-width:720px">
+    @Html.AntiForgeryToken()
+
+    @* Carries the admin's choice of whose profile is being synced. The
+       controller ignores it for everybody who is not an admin. *@
+    <input type="hidden" asp-for="OwnerId" />
+
+    @* Salesforce errors and failed syncs both land here. *@
+    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+    @* --- What we already hold, shown so the user can see what is sent ---- *@
+    <div class="col-12">
+        <h2 class="h6 text-uppercase text-body-secondary">@L["Sent from your profile"]</h2>
+        <p class="small text-body-secondary mb-2">
+            @L["These come from fields that always exist on a profile and cannot be removed. Change them on your profile page, not here."]
+        </p>
+        <dl class="row mb-0 small">
+            <dt class="col-sm-3">@L["Name"]</dt>
+            <dd class="col-sm-9">@Model.DisplayName</dd>
+
+            <dt class="col-sm-3">@L["Email"]</dt>
+            <dd class="col-sm-9">@Model.Email</dd>
+
+            @if (!string.IsNullOrWhiteSpace(Model.LocationHint))
+            {
+                <dt class="col-sm-3">@L["Location"]</dt>
+                <dd class="col-sm-9">@Model.LocationHint</dd>
+            }
+        </dl>
+    </div>
+
+    <div class="col-12">
+        <hr class="my-1" />
+        <h2 class="h6 text-uppercase text-body-secondary mt-2">@L["Additional information"]</h2>
+    </div>
+
+    @* --- The company, which becomes the Salesforce Account --------------- *@
+    <div class="col-12">
+        <label asp-for="CompanyName" class="form-label">
+            @L["Company name"] <span class="badge text-bg-danger-subtle text-danger-emphasis">@L["required"]</span>
+        </label>
+        <input asp-for="CompanyName" class="form-control" placeholder="Acme Corp."
+               disabled="@(!Model.IsConfigured)" />
+        <div class="form-text">@L["This becomes the name of the Account record in Salesforce."]</div>
+        <span asp-validation-for="CompanyName" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="Industry" class="form-label">@L["Industry"]</label>
+        @* A dropdown rather than a text box because Industry is a restricted
+           picklist in Salesforce - a free-text value would be rejected. *@
+        <select asp-for="Industry" class="form-select" disabled="@(!Model.IsConfigured)">
+            <option value="">@L["— choose —"]</option>
+            @foreach (var industry in CvManager.Models.ViewModels.SalesforceSyncViewModel.IndustryOptions)
+            {
+                <option value="@industry" selected="@(Model.Industry == industry)">@industry</option>
+            }
+        </select>
+        <span asp-validation-for="Industry" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="Website" class="form-label">@L["Company website"]</label>
+        <input asp-for="Website" class="form-control" placeholder="https://example.com"
+               disabled="@(!Model.IsConfigured)" />
+        <span asp-validation-for="Website" class="text-danger small"></span>
+    </div>
+
+    @* --- The person, which becomes the linked Salesforce Contact --------- *@
+    <div class="col-12 col-md-6">
+        <label asp-for="JobTitle" class="form-label">@L["Job title"]</label>
+        <input asp-for="JobTitle" class="form-control" placeholder="Data Engineer"
+               disabled="@(!Model.IsConfigured)" />
+        <span asp-validation-for="JobTitle" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="Phone" class="form-label">@L["Phone"]</label>
+        <input asp-for="Phone" class="form-control" placeholder="+48 123 456 789"
+               disabled="@(!Model.IsConfigured)" />
+        <span asp-validation-for="Phone" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="City" class="form-label">@L["City"]</label>
+        <input asp-for="City" class="form-control" disabled="@(!Model.IsConfigured)" />
+        <span asp-validation-for="City" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <label asp-for="Country" class="form-label">@L["Country"]</label>
+        <input asp-for="Country" class="form-control" disabled="@(!Model.IsConfigured)" />
+        <span asp-validation-for="Country" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary" disabled="@(!Model.IsConfigured)">
+            <i class="bi bi-cloud-upload"></i>
+            @(Model.HasSynced ? L["Update in Salesforce"] : L["Create in Salesforce"])
+        </button>
+        <a class="btn btn-outline-secondary" asp-controller="Profile" asp-action="Index">@L["Cancel"]</a>
+    </div>
+</form>
+
+@section Scripts {
+    @* Client-side validation mirrors the data annotations; the server checks
+       them again regardless. *@
+    <partial name="_ValidationScriptsPartial" />
+}

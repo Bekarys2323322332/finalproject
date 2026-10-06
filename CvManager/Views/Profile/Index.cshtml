@@ -78,6 +78,32 @@
                         <i class="bi bi-download"></i> @L["Download SVG"]
                     </a>
                 </div>
+
+                @* CRM integration. Model.CanEdit is true only for the owner - in
+                   any role - and for admins, which is exactly who the task says
+                   may use this. A recruiter reading somebody else's profile gets
+                   CanEdit == false and never sees the button.
+                   SalesforceController repeats the same check on every request,
+                   so hiding the link here is convenience and not security. *@
+                @if (Model.CanEdit)
+                {
+                    <h2 class="h6 text-uppercase text-body-secondary mt-4">@L["CRM"]</h2>
+                    <p class="small text-body-secondary mb-2">
+                        @L["Send your details to Salesforce as an Account with a linked Contact."]
+                    </p>
+                    <a class="btn btn-sm btn-outline-primary"
+                       asp-controller="Salesforce" asp-action="Sync"
+                       asp-route-ownerId="@(isOwnPage ? null : ownerId)">
+                        <i class="bi bi-cloud-upload"></i> @L["Sync to Salesforce"]
+                    </a>
+
+                    @if (Model.Owner.SalesforceSyncedAt is not null)
+                    {
+                        <div class="small text-body-secondary mt-1">
+                            @L["Last synced"]: @Model.Owner.SalesforceSyncedAt.Value.ToString("d MMM yyyy HH:mm") UTC
+                        </div>
+                    }
+                }
             </div>
         </div>
     </div>

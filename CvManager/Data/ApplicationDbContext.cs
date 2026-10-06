@@ -39,6 +39,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(builder);
 
+        ConfigureUsers(builder);
         ConfigureAttributes(builder);
         ConfigureProjects(builder);
         ConfigurePositions(builder);
@@ -59,6 +60,29 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .Property(nameof(IVersioned.Version))
                 .IsConcurrencyToken();
         }
+    }
+
+    // Only the columns I added to Identity's user table. Everything Identity
+    // itself owns is already configured by base.OnModelCreating.
+    private static void ConfigureUsers(ModelBuilder builder)
+    {
+        builder.Entity<ApplicationUser>(e =>
+        {
+            // Salesforce ids are 18 characters (or 15 in the older short form).
+            e.Property(u => u.SalesforceAccountId).HasMaxLength(32);
+            e.Property(u => u.SalesforceContactId).HasMaxLength(32);
+
+            // The lengths below match the Salesforce standard fields these end
+            // up in, so a value that fits our column always fits theirs and the
+            // CRM cannot reject a sync for being too long.
+            e.Property(u => u.CompanyName).HasMaxLength(255);   // Account.Name
+            e.Property(u => u.Industry).HasMaxLength(255);      // Account.Industry
+            e.Property(u => u.Website).HasMaxLength(255);       // Account.Website
+            e.Property(u => u.Phone).HasMaxLength(40);          // Account.Phone
+            e.Property(u => u.JobTitle).HasMaxLength(128);      // Contact.Title
+            e.Property(u => u.City).HasMaxLength(100);          // BillingCity
+            e.Property(u => u.Country).HasMaxLength(100);       // BillingCountry
+        });
     }
 
     private static void ConfigureAttributes(ModelBuilder builder)

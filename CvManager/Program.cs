@@ -117,6 +117,21 @@ builder.Services.AddScoped<CvPdfService>();
 builder.Services.AddScoped<BadgeService>();
 builder.Services.AddScoped<CvCsvExporter>();
 
+// Salesforce CRM integration. The credentials are bound from configuration, so
+// they come from appsettings.Development.json locally and from environment
+// variables in Cloud Run - never from anything committed.
+builder.Services.Configure<SalesforceOptions>(
+    builder.Configuration.GetSection(SalesforceOptions.SectionName));
+
+// Registered as a typed client so the HttpClient underneath is pooled and its
+// handler recycled, rather than a new socket per sync. The timeout is short on
+// purpose: a user is waiting for this request, and a hanging CRM call should
+// fail fast with a readable message instead of holding the page.
+builder.Services.AddHttpClient<SalesforceService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
 var app = builder.Build();
 
 // Apply migrations and create the roles (and the first admin) on startup, so a
